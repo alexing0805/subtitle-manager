@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  subtitle-manager:
+    build: .
+    container_name: subtitle-manager
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "8080:8080"
+    
+    # 环境变量配置
+    environment:
+      WATCH_DIRS: "/movies,/tvshows"
+      SCAN_INTERVAL: "30"
+      LOG_LEVEL: "INFO"
+      SUBTITLE_SOURCES: "subhd,zimuku,opensubtitles"
+      AUTO_DOWNLOAD: "true"
+      MIN_FILE_SIZE_MB: "100"
+      MAX_CONCURRENT_DOWNLOADS: "3"
+    
+    # 卷映射
+    volumes:
+      - ./test/movies:/movies
+      - ./test/tvshows:/tvshows
+      - ./logs:/app/logs
+      - ./data:/app/data
+    
+    # 网络配置
+    networks:
+      - subtitle-network
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  subtitle-network:
+    driver: bridge
