@@ -1,4 +1,4 @@
-﻿# Subtitle Manager Docker Deploy Script
+# Subtitle Manager Docker deploy script
 param(
     [switch]$Build,
     [switch]$Start,
@@ -11,109 +11,109 @@ param(
 $dockerPath = "C:\Program Files\Docker\Docker\resources\bin\docker.exe"
 $dockerComposePath = "C:\Program Files\Docker\Docker\resources\bin\docker-compose.exe"
 $env:Path += ";C:\Program Files\Docker\Docker\resources\bin"
+$RepoRoot = Split-Path -Parent $PSScriptRoot
+
+function Enter-RepoRoot {
+    Set-Location $RepoRoot
+}
 
 function Test-Docker {
     Write-Host "Checking Docker environment..."
-    
+
     if (-not (Test-Path $dockerPath)) {
         Write-Host "Docker not installed" -ForegroundColor Red
         return $false
     }
-    
+
     Write-Host "Docker client installed" -ForegroundColor Green
-    
+
     $info = & $dockerPath info 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Docker engine not running, starting..." -ForegroundColor Yellow
         $dockerDesktop = "C:\Program Files\Docker\Docker\Docker Desktop.exe"
-        if (Test-Path $dockerDesktop) {
-            Start-Process $dockerDesktop
-            $attempts = 0
-            while ($attempts -lt 30) {
-                Start-Sleep -Seconds 2
-                $attempts++
-                Write-Host "Waiting for Docker... ($attempts/30)"
-                $info = & $dockerPath info 2>&1
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Host "Docker engine started" -ForegroundColor Green
-                    break
-                }
-            }
-            if ($attempts -eq 30) {
-                Write-Host "Docker start timeout" -ForegroundColor Red
-                return $false
-            }
-        } else {
+        if (-not (Test-Path $dockerDesktop)) {
             Write-Host "Docker Desktop not found" -ForegroundColor Red
             return $false
         }
-    } else {
-        Write-Host "Docker engine running" -ForegroundColor Green
+
+        Start-Process $dockerDesktop
+        $attempts = 0
+        while ($attempts -lt 30) {
+            Start-Sleep -Seconds 2
+            $attempts++
+            Write-Host "Waiting for Docker... ($attempts/30)"
+            $info = & $dockerPath info 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Docker engine started" -ForegroundColor Green
+                return $true
+            }
+        }
+
+        Write-Host "Docker start timeout" -ForegroundColor Red
+        return $false
     }
+
+    Write-Host "Docker engine running" -ForegroundColor Green
     return $true
+}
+
+function Ensure-RuntimeDirs {
+    New-Item -ItemType Directory -Force -Path data, logs | Out-Null
 }
 
 function Build-Images {
     Write-Host ""
     Write-Host "Building Docker images..." -ForegroundColor Cyan
     Write-Host ""
-    
+
+    Enter-RepoRoot
     if (-not (Test-Docker)) { exit 1 }
-    
-    New-Item -ItemType Directory -Force -Path test\movies, test\tvshows, logs, data | Out-Null
-    
-    if (-not (Test-Path "test\movies\Test.Movie.2024.1080p.mkv")) {
-        New-Item -ItemType File -Force -Path test\movies\Test.Movie.2024.1080p.mkv | Out-Null
-    }
-    if (-not (Test-Path "test\tvshows\Test.Show.S01E01.mkv")) {
-        New-Item -ItemType File -Force -Path test\tvshows\Test.Show.S01E01.mkv | Out-Null
-    }
-    
+    Ensure-RuntimeDirs
+
     & $dockerComposePath build --no-cache
-    
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host ""
-        Write-Host "Build successful" -ForegroundColor Green
-    } else {
+    if ($LASTEXITCODE -ne 0) {
         Write-Host ""
         Write-Host "Build failed" -ForegroundColor Red
         exit 1
     }
+
+    Write-Host ""
+    Write-Host "Build successful" -ForegroundColor Green
 }
 
 function Start-Service {
     Write-Host ""
     Write-Host "Starting subtitle manager service..." -ForegroundColor Cyan
     Write-Host ""
-    
+
+    Enter-RepoRoot
     if (-not (Test-Docker)) { exit 1 }
-    
-    New-Item -ItemType Directory -Force -Path test\movies, test\tvshows, logs, data | Out-Null
-    
+    Ensure-RuntimeDirs
+
     & $dockerComposePath up -d
-    
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host ""
-        Write-Host "Service started" -ForegroundColor Green
-        Write-Host ""
-        Write-Host "Access URLs:" -ForegroundColor Cyan
-        Write-Host "  Web UI: http://localhost:8080"
-        Write-Host "  API Docs: http://localhost:8080/docs"
-        Write-Host "  Health: http://localhost:8080/health"
-    } else {
+    if ($LASTEXITCODE -ne 0) {
         Write-Host ""
         Write-Host "Failed to start service" -ForegroundColor Red
         exit 1
     }
+
+    Write-Host ""
+    Write-Host "Service started" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Access URLs:" -ForegroundColor Cyan
+    Write-Host "  Web UI: http://localhost:8080"
+    Write-Host "  API Docs: http://localhost:8080/docs"
+    Write-Host "  Health: http://localhost:8080/health"
 }
 
 function Stop-Service {
     Write-Host ""
     Write-Host "Stopping subtitle manager service..." -ForegroundColor Cyan
     Write-Host ""
-    
+
+    Enter-RepoRoot
     & $dockerComposePath down
-    
+
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""
         Write-Host "Service stopped" -ForegroundColor Green
@@ -124,6 +124,7 @@ function Stop-Service {
 }
 
 function Show-Logs {
+    Enter-RepoRoot
     Write-Host ""
     Write-Host "Viewing logs..." -ForegroundColor Cyan
     Write-Host ""
@@ -131,6 +132,7 @@ function Show-Logs {
 }
 
 function Show-Status {
+    Enter-RepoRoot
     Write-Host ""
     Write-Host "Service status:" -ForegroundColor Cyan
     Write-Host ""
@@ -156,15 +158,10 @@ if ($Build) {
     Write-Host "Subtitle Manager Deploy Script" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Usage:"
-    Write-Host "  .\deploy.ps1 -Build    Build images"
-    Write-Host "  .\deploy.ps1 -Start    Start service"
-    Write-Host "  .\deploy.ps1 -Stop     Stop service"
-    Write-Host "  .\deploy.ps1 -Restart  Restart service"
-    Write-Host "  .\deploy.ps1 -Logs     View logs"
-    Write-Host "  .\deploy.ps1 -Status   View status"
-    Write-Host ""
-    Write-Host "Quick start:"
-    Write-Host "  1. .\deploy.ps1 -Build"
-    Write-Host "  2. .\deploy.ps1 -Start"
-    Write-Host "  3. Open http://localhost:8080"
+    Write-Host "  .\scripts\deploy.ps1 -Build    Build images"
+    Write-Host "  .\scripts\deploy.ps1 -Start    Start service"
+    Write-Host "  .\scripts\deploy.ps1 -Stop     Stop service"
+    Write-Host "  .\scripts\deploy.ps1 -Restart  Restart service"
+    Write-Host "  .\scripts\deploy.ps1 -Logs     View logs"
+    Write-Host "  .\scripts\deploy.ps1 -Status   View status"
 }

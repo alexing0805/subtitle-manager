@@ -17,7 +17,7 @@ cd ..
 ### 2. 启动服务
 
 ```bash
-python start_server.py
+python scripts/start_server.py
 ```
 
 启动后访问：
@@ -34,7 +34,7 @@ python start_server.py
 pip install -r requirements.txt
 
 # 启动后端
-python -m uvicorn api_server:app --host 0.0.0.0 --port 8080 --reload
+python -m uvicorn backend.api_server:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 访问 http://localhost:8080/docs 查看 API 文档
@@ -56,7 +56,9 @@ npm run dev
 cp .env.example .env
 
 # 编辑 .env 文件，配置你的媒体目录
-# WATCH_DIRS=/your/movies/path
+# MOVIE_DIR=/movies
+# TV_DIR=/tvshows
+# ANIME_DIR=/anime
 
 # 启动服务
 docker-compose up -d
@@ -75,7 +77,7 @@ docker-compose logs -f
 
 ```bash
 # 后端使用其他端口
-python -m uvicorn api_server:app --host 0.0.0.0 --port 8081 --reload
+python -m uvicorn backend.api_server:app --host 0.0.0.0 --port 8081 --reload
 
 # 或修改 docker-compose.yml 中的端口映射
 ```
@@ -101,8 +103,10 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 编辑 `.env` 文件配置系统：
 
 ```env
-# 监控目录（Nastools 生成的硬链接目录）
-WATCH_DIRS=/movies,/tvshows
+# 媒体目录
+MOVIE_DIR=/movies
+TV_DIR=/tvshows
+ANIME_DIR=/anime
 
 # 扫描间隔（分钟）
 SCAN_INTERVAL=30

@@ -1,0 +1,45 @@
+services:
+  subtitle-manager:
+    image: alexwjxing/subtitle-manager:latest
+    container_name: subtitle-manager
+    restart: unless-stopped
+    
+    ports:
+      - "18080:8080"
+    
+    environment:
+      # 监控目录
+      MOVIE_DIR: "/movies"
+      TV_DIR: "/tvshows"  
+      ANIME_DIR: "/anime"
+      # 扫描配置
+      SCAN_INTERVAL: "30"
+      MIN_FILE_SIZE_MB: "100"
+      MAX_CONCURRENT_DOWNLOADS: "3"
+      # 字幕源
+      SUBTITLE_SOURCES: "shooter,assrt,opensubtitles,subhd"
+      AUTO_DOWNLOAD: "true"
+      BACKUP_EXISTING_SUBTITLE: "false"
+      # 命名格式
+      PLEX_NAMING_FORMAT: "true"
+      # 日志
+      LOG_LEVEL: "INFO"
+      # API 配置（可选）
+      TMDB_API_KEY: ""
+      OPENSUBTITLES_API_KEY: ""
+      OPENSUBTITLES_USERNAME: ""
+      OPENSUBTITLES_PASSWORD: ""
+      # NASTool 配置（可选）
+      NASTOOL_ENABLED: "false"
+      NASTOOL_WEBHOOK_TOKEN: ""
+    
+    volumes:
+      # 媒体目录（根据你的实际路径修改）
+      - /mnt/user/movies:/movies
+      - /mnt/user/tvshows:/tvshows
+      - /mnt/user/anime:/anime
+      # 配置和数据持久化（关键！）
+      - /mnt/user/appdata/subtitle-manager/logs:/app/logs
+      - /mnt/user/appdata/subtitle-manager/data:/app/data
+      # 挂载 .env 文件以持久化配置
+      - /mnt/user/appdata/subtitle-manager/.env:/app/.env

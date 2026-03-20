@@ -14,6 +14,7 @@ export const useSubtitleStore = defineStore('subtitle', () => {
   // State
   const movies = ref([])
   const tvShows = ref([])
+  const anime = ref([])
   const stats = ref({
     total: 0,
     withSubtitle: 0,
@@ -69,6 +70,20 @@ export const useSubtitleStore = defineStore('subtitle', () => {
       return response.data
     } catch (error) {
       console.error('获取电视剧列表失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchAnime() {
+    loading.value = true
+    try {
+      const response = await api.get('/anime')
+      anime.value = response.data
+      return response.data
+    } catch (error) {
+      console.error('获取动漫列表失败:', error)
       throw error
     } finally {
       loading.value = false
@@ -165,6 +180,7 @@ export const useSubtitleStore = defineStore('subtitle', () => {
   return {
     movies,
     tvShows,
+    anime,
     stats,
     loading,
     currentTask,
@@ -172,6 +188,7 @@ export const useSubtitleStore = defineStore('subtitle', () => {
     tvEpisodesWithoutSubtitle,
     fetchMovies,
     fetchTVShows,
+    fetchAnime,
     fetchStats,
     searchSubtitle,
     downloadSubtitle,

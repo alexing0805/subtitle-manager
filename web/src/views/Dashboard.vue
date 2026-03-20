@@ -1,49 +1,54 @@
 <template>
   <div class="dashboard">
-    <header class="page-header">
-      <h1 class="page-title">仪表盘</h1>
-      <p class="page-subtitle">概览你的字幕管理状态</p>
+    <!-- 欢迎区域 -->
+    <header class="welcome-section">
+      <h1 class="welcome-title">仪表盘</h1>
+      <p class="welcome-subtitle">概览你的字幕管理状态</p>
     </header>
 
     <!-- 统计卡片 -->
     <div class="stats-grid">
-      <div class="stat-card apple-card">
-        <div class="stat-icon" style="background: linear-gradient(135deg, #0071e3 0%, #42a5f5 100%);">
+      <div class="stat-card infuse-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);">
           <el-icon><Film /></el-icon>
         </div>
         <div class="stat-content">
-          <div class="stat-value">{{ stats.total }}</div>
-          <div class="stat-label">总视频数</div>
+          <div class="stat-value">{{ stats.totalMovies }}</div>
+          <div class="stat-label">电影</div>
+          <div class="stat-sublabel">{{ stats.moviesWithSubtitle }} 有字幕 / {{ stats.moviesWithoutSubtitle }} 缺字幕</div>
         </div>
       </div>
 
-      <div class="stat-card apple-card">
+      <div class="stat-card infuse-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #5856d6 0%, #af52de 100%);">
+          <el-icon><VideoCamera /></el-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ stats.totalTVShows }}</div>
+          <div class="stat-label">电视剧</div>
+          <div class="stat-sublabel">{{ stats.totalEpisodes }} 集 / {{ stats.episodesWithSubtitle }} 有字幕</div>
+        </div>
+      </div>
+
+      <div class="stat-card infuse-card">
         <div class="stat-icon" style="background: linear-gradient(135deg, #34c759 0%, #30d158 100%);">
           <el-icon><Check /></el-icon>
         </div>
         <div class="stat-content">
-          <div class="stat-value">{{ stats.withSubtitle }}</div>
+          <div class="stat-value">{{ stats.totalWithSubtitle }}</div>
           <div class="stat-label">已有字幕</div>
+          <div class="stat-sublabel">电影 + 剧集</div>
         </div>
       </div>
 
-      <div class="stat-card apple-card">
+      <div class="stat-card infuse-card">
         <div class="stat-icon" style="background: linear-gradient(135deg, #ff9500 0%, #ffcc00 100%);">
           <el-icon><Warning /></el-icon>
         </div>
         <div class="stat-content">
-          <div class="stat-value">{{ stats.withoutSubtitle }}</div>
+          <div class="stat-value">{{ stats.totalWithoutSubtitle }}</div>
           <div class="stat-label">缺少字幕</div>
-        </div>
-      </div>
-
-      <div class="stat-card apple-card">
-        <div class="stat-icon" style="background: linear-gradient(135deg, #af52de 0%, #bf5af2 100%);">
-          <el-icon><Loading /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ stats.processing }}</div>
-          <div class="stat-label">处理中</div>
+          <div class="stat-sublabel">待处理</div>
         </div>
       </div>
     </div>
@@ -52,23 +57,31 @@
     <div class="quick-actions">
       <h2 class="section-title">快捷操作</h2>
       <div class="actions-grid">
-        <button class="action-card apple-card" @click="handleScan">
-          <el-icon class="action-icon"><Search /></el-icon>
+        <button class="action-card infuse-card" @click="handleScan">
+          <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);">
+            <el-icon class="action-icon"><Search /></el-icon>
+          </div>
           <span class="action-text">扫描库</span>
         </button>
         
-        <button class="action-card apple-card" @click="$router.push('/batch-upload')">
-          <el-icon class="action-icon"><Upload /></el-icon>
+        <button class="action-card infuse-card" @click="$router.push('/batch-upload')">
+          <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #5856d6 0%, #af52de 100%);">
+            <el-icon class="action-icon"><Upload /></el-icon>
+          </div>
           <span class="action-text">批量上传</span>
         </button>
         
-        <button class="action-card apple-card" @click="handleAutoDownload">
-          <el-icon class="action-icon"><Download /></el-icon>
+        <button class="action-card infuse-card" @click="handleAutoDownload">
+          <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #34c759 0%, #30d158 100%);">
+            <el-icon class="action-icon"><Download /></el-icon>
+          </div>
           <span class="action-text">自动下载</span>
         </button>
         
-        <button class="action-card apple-card" @click="$router.push('/settings')">
-          <el-icon class="action-icon"><Setting /></el-icon>
+        <button class="action-card infuse-card" @click="$router.push('/settings')">
+          <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #0071e3 0%, #42a5f5 100%);">
+            <el-icon class="action-icon"><Setting /></el-icon>
+          </div>
           <span class="action-text">设置</span>
         </button>
       </div>
@@ -77,7 +90,7 @@
     <!-- 最近活动 -->
     <div class="recent-activity">
       <h2 class="section-title">最近活动</h2>
-      <div class="activity-list apple-card">
+      <div class="activity-list infuse-card">
         <div v-if="activities.length === 0" class="empty-state">
           <el-icon class="empty-icon"><InfoFilled /></el-icon>
           <p>暂无活动记录</p>
@@ -96,7 +109,7 @@
             <div class="activity-title">{{ activity.title }}</div>
             <div class="activity-time">{{ formatTime(activity.time) }}</div>
           </div>
-          <el-tag :type="getActivityTagType(activity.status)" size="small">
+          <el-tag :type="getActivityTagType(activity.status)" size="small" effect="dark">
             {{ activity.status }}
           </el-tag>
         </div>
@@ -106,11 +119,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage } from 'element-plus'
 import {
-  Film, Check, Warning, Loading, Search, Upload, Download, Setting, InfoFilled
+  Film, Check, Warning, Loading, Search, Upload, Download, Setting, InfoFilled, VideoCamera
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -120,18 +133,51 @@ dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
 
 const store = useSubtitleStore()
-const stats = ref({
-  total: 0,
-  withSubtitle: 0,
-  withoutSubtitle: 0,
-  processing: 0
+const rawStats = ref({
+  totalMovies: 0,
+  moviesWithSubtitle: 0,
+  moviesWithoutSubtitle: 0,
+  totalTVShows: 0,
+  totalEpisodes: 0,
+  episodesWithSubtitle: 0,
+  episodesWithoutSubtitle: 0,
+  recentDownloads: 0,
+  pendingTasks: 0
 })
 const activities = ref([])
+
+// 计算总统计
+const stats = computed(() => {
+  const totalMovies = rawStats.value.totalMovies || 0
+  const totalEpisodes = rawStats.value.totalEpisodes || 0
+  const moviesWithSubtitle = rawStats.value.moviesWithSubtitle || 0
+  const moviesWithoutSubtitle = rawStats.value.moviesWithoutSubtitle || 0
+  const episodesWithSubtitle = rawStats.value.episodesWithSubtitle || 0
+  const episodesWithoutSubtitle = rawStats.value.episodesWithoutSubtitle || 0
+  
+  return {
+    // 电影统计
+    totalMovies,
+    moviesWithSubtitle,
+    moviesWithoutSubtitle,
+    // 电视剧统计
+    totalTVShows: rawStats.value.totalTVShows || 0,
+    totalEpisodes,
+    episodesWithSubtitle,
+    episodesWithoutSubtitle,
+    // 总计
+    totalWithSubtitle: moviesWithSubtitle + episodesWithSubtitle,
+    totalWithoutSubtitle: moviesWithoutSubtitle + episodesWithoutSubtitle,
+    // 其他
+    recentDownloads: rawStats.value.recentDownloads || 0,
+    pendingTasks: rawStats.value.pendingTasks || 0
+  }
+})
 
 onMounted(async () => {
   try {
     const data = await store.fetchStats()
-    stats.value = data
+    rawStats.value = data
     // 这里可以从后端获取活动记录
     activities.value = []
   } catch (error) {
@@ -145,7 +191,7 @@ async function handleScan() {
     await store.scanLibrary()
     ElMessage.success('扫描完成')
     const data = await store.fetchStats()
-    stats.value = data
+    rawStats.value = data
   } catch (error) {
     ElMessage.error('扫描失败')
   }
@@ -190,15 +236,46 @@ function getActivityTagType(status) {
   max-width: 1200px;
 }
 
-.page-header {
-  margin-bottom: 32px;
+/* 欢迎区域 */
+.welcome-section {
+  margin-bottom: 40px;
 }
 
+.welcome-title {
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--infuse-text-primary);
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.welcome-subtitle {
+  font-size: 18px;
+  color: var(--infuse-text-secondary);
+  font-weight: 400;
+}
+
+/* Infuse 卡片样式 */
+.infuse-card {
+  background: var(--infuse-bg-card);
+  border-radius: var(--infuse-radius-lg);
+  border: 1px solid var(--infuse-border);
+  overflow: hidden;
+  transition: all var(--infuse-transition-normal);
+}
+
+.infuse-card:hover {
+  border-color: var(--infuse-border-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--infuse-shadow-md);
+}
+
+/* 统计卡片 */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
-  margin-bottom: 40px;
+  margin-bottom: 48px;
 }
 
 .stat-card {
@@ -206,6 +283,11 @@ function getActivityTagType(status) {
   align-items: center;
   gap: 16px;
   padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), transparent 28%),
+    rgba(10, 16, 38, 0.76);
+  border: 1px solid rgba(119, 247, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
 .stat-icon {
@@ -217,30 +299,41 @@ function getActivityTagType(status) {
   justify-content: center;
   color: white;
   font-size: 24px;
+  flex-shrink: 0;
 }
 
 .stat-value {
-  font-size: 32px;
-  font-weight: 700;
-  color: #1d1d1f;
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--infuse-text-primary);
   line-height: 1;
+  margin-bottom: 4px;
 }
 
 .stat-label {
   font-size: 14px;
-  color: #86868b;
+  color: var(--infuse-text-secondary);
+  font-weight: 500;
+}
+
+.stat-sublabel {
+  font-size: 12px;
+  color: var(--infuse-text-muted);
   margin-top: 4px;
 }
 
+/* 分区标题 */
 .section-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  color: #1d1d1f;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--infuse-text-primary);
+  letter-spacing: -0.01em;
 }
 
+/* 快捷操作 */
 .quick-actions {
-  margin-bottom: 40px;
+  margin-bottom: 48px;
 }
 
 .actions-grid {
@@ -254,26 +347,50 @@ function getActivityTagType(status) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 16px;
   padding: 32px 24px;
   cursor: pointer;
   border: none;
-  background: rgba(255, 255, 255, 0.8);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), transparent 28%),
+    rgba(10, 16, 38, 0.76);
+  border: 1px solid rgba(119, 247, 255, 0.12);
+}
+
+.action-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--infuse-shadow-glow), var(--infuse-shadow-lg);
+}
+
+.action-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--infuse-radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 28px;
+  transition: transform var(--infuse-transition-normal);
+}
+
+.action-card:hover .action-icon-wrapper {
+  transform: scale(1.05);
 }
 
 .action-icon {
-  font-size: 32px;
-  color: #0071e3;
+  font-size: 28px;
 }
 
 .action-text {
   font-size: 15px;
-  font-weight: 500;
-  color: #1d1d1f;
+  font-weight: 600;
+  color: var(--infuse-text-primary);
 }
 
+/* 最近活动 */
 .recent-activity {
-  margin-bottom: 40px;
+  margin-bottom: 48px;
 }
 
 .activity-list {
@@ -286,12 +403,13 @@ function getActivityTagType(status) {
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: #86868b;
+  color: var(--infuse-text-muted);
 }
 
 .empty-icon {
   font-size: 48px;
   margin-bottom: 16px;
+  opacity: 0.5;
 }
 
 .activity-item {
@@ -299,11 +417,16 @@ function getActivityTagType(status) {
   align-items: center;
   gap: 16px;
   padding: 16px 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--infuse-border);
+  transition: background var(--infuse-transition-fast);
 }
 
 .activity-item:last-child {
   border-bottom: none;
+}
+
+.activity-item:hover {
+  background: rgba(18, 29, 62, 0.88);
 }
 
 .activity-icon {
@@ -313,17 +436,18 @@ function getActivityTagType(status) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 113, 227, 0.1);
-  color: #0071e3;
+  background: rgba(255, 107, 53, 0.15);
+  color: var(--infuse-accent);
+  flex-shrink: 0;
 }
 
 .activity-icon.download {
-  background: rgba(52, 199, 89, 0.1);
+  background: rgba(52, 199, 89, 0.15);
   color: #34c759;
 }
 
 .activity-icon.upload {
-  background: rgba(175, 82, 222, 0.1);
+  background: rgba(175, 82, 222, 0.15);
   color: #af52de;
 }
 
@@ -334,15 +458,16 @@ function getActivityTagType(status) {
 .activity-title {
   font-size: 15px;
   font-weight: 500;
-  color: #1d1d1f;
+  color: var(--infuse-text-primary);
 }
 
 .activity-time {
   font-size: 13px;
-  color: #86868b;
+  color: var(--infuse-text-muted);
   margin-top: 2px;
 }
 
+/* 响应式 */
 @media (max-width: 1024px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -354,6 +479,10 @@ function getActivityTagType(status) {
 }
 
 @media (max-width: 640px) {
+  .welcome-title {
+    font-size: 32px;
+  }
+  
   .stats-grid {
     grid-template-columns: 1fr;
   }

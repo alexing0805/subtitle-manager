@@ -1,44 +1,21 @@
-version: '3.8'
-
 services:
   subtitle-manager:
     build: .
+    image: alexwjxing/subtitle-manager:latest
     container_name: subtitle-manager
     restart: unless-stopped
-    
-    # 端口映射
     ports:
-      - "8080:8080"
-    
-    # 环境变量配置
+      - "18080:8080"
     environment:
-      WATCH_DIRS: "/movies,/tvshows"
-      SCAN_INTERVAL: "30"
-      LOG_LEVEL: "INFO"
-      SUBTITLE_SOURCES: "subhd,zimuku,opensubtitles"
-      AUTO_DOWNLOAD: "true"
-      MIN_FILE_SIZE_MB: "100"
-      MAX_CONCURRENT_DOWNLOADS: "3"
-    
-    # 卷映射
+      MOVIE_DIR: "/movies"
+      TV_DIR: "/tvshows"
+      ANIME_DIR: "/anime"
+      SUBTITLE_SOURCES: "shooter,assrt,opensubtitles,subhd"
+      NASTOOL_ENABLED: "false"
+      # 注意：TMDB、Plex、OpenSubtitles 等需要持久化的配置建议通过 Web 设置页保存
     volumes:
-      - ./test/movies:/movies
-      - ./test/tvshows:/tvshows
+      - /mnt/user/Video/Link/MOVIES:/movies
+      - /mnt/user/Video/Link/TVSHOWS:/tvshows
+      - /mnt/user/Video/Link/ANIMES:/anime
       - ./logs:/app/logs
       - ./data:/app/data
-    
-    # 网络配置
-    networks:
-      - subtitle-network
-    
-    # 健康检查
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-networks:
-  subtitle-network:
-    driver: bridge

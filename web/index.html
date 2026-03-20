@@ -3,10 +3,224 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Subtitle Manager</title>
+  <title>SubMate - 字幕管理助手</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Infuse 风格设计系统 - 内联样式确保加载 */
+    :root {
+      --infuse-bg-primary: #0a0a0f;
+      --infuse-bg-secondary: #12121a;
+      --infuse-bg-tertiary: #1a1a25;
+      --infuse-bg-card: #1a1a24;
+      --infuse-bg-hover: #252530;
+      --infuse-bg-input: #252530;
+      --infuse-accent: #ff6b35;
+      --infuse-accent-hover: #ff8555;
+      --infuse-accent-glow: rgba(255, 107, 53, 0.3);
+      --infuse-text-primary: #ffffff;
+      --infuse-text-secondary: rgba(255, 255, 255, 0.85);
+      --infuse-text-tertiary: rgba(255, 255, 255, 0.6);
+      --infuse-text-muted: rgba(255, 255, 255, 0.45);
+      --infuse-border: rgba(255, 255, 255, 0.1);
+      --infuse-border-hover: rgba(255, 255, 255, 0.2);
+      --infuse-gradient-overlay: linear-gradient(180deg, transparent 0%, rgba(10, 10, 15, 0.8) 60%, rgba(10, 10, 15, 0.98) 100%);
+      --infuse-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --infuse-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+      --infuse-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+      --infuse-shadow-glow: 0 0 30px var(--infuse-accent-glow);
+      --infuse-radius-sm: 8px;
+      --infuse-radius-md: 12px;
+      --infuse-radius-lg: 16px;
+      --infuse-radius-xl: 24px;
+      --infuse-transition-fast: 0.15s ease;
+      --infuse-transition-normal: 0.25s ease;
+      --infuse-transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+      background: var(--infuse-bg-primary) !important;
+      color: var(--infuse-text-primary);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      line-height: 1.5;
+    }
+
+    body {
+      min-height: 100vh;
+    }
+
+    #app {
+      min-height: 100vh;
+      background: var(--infuse-bg-primary);
+    }
+
+    /* 覆盖 Element Plus 的浅色样式 */
+    .el-input__wrapper,
+    .el-textarea__inner,
+    .el-input__inner {
+      background-color: var(--infuse-bg-input) !important;
+      border-color: var(--infuse-border) !important;
+      color: var(--infuse-text-primary) !important;
+    }
+
+    .el-input__wrapper:hover,
+    .el-input__wrapper.is-focus {
+      border-color: var(--infuse-accent) !important;
+      box-shadow: 0 0 0 1px var(--infuse-accent) !important;
+    }
+
+    .el-checkbox__label,
+    .el-form-item__label {
+      color: var(--infuse-text-secondary) !important;
+    }
+
+    .el-slider__runway {
+      background-color: var(--infuse-bg-tertiary) !important;
+    }
+
+    .el-slider__bar {
+      background-color: var(--infuse-accent) !important;
+    }
+
+    .el-slider__button {
+      border-color: var(--infuse-accent) !important;
+      background-color: var(--infuse-accent) !important;
+    }
+
+    .el-tag {
+      background-color: var(--infuse-bg-tertiary) !important;
+      border-color: var(--infuse-border) !important;
+      color: var(--infuse-text-secondary) !important;
+    }
+
+    .el-tag--success {
+      background-color: rgba(103, 194, 58, 0.15) !important;
+      border-color: rgba(103, 194, 58, 0.3) !important;
+      color: #67c23a !important;
+    }
+
+    .el-tag--warning {
+      background-color: rgba(230, 162, 60, 0.15) !important;
+      border-color: rgba(230, 162, 60, 0.3) !important;
+      color: #e6a23c !important;
+    }
+
+    .el-tag--danger {
+      background-color: rgba(245, 108, 108, 0.15) !important;
+      border-color: rgba(245, 108, 108, 0.3) !important;
+      color: #f56c6c !important;
+    }
+
+    .el-button--primary {
+      background-color: var(--infuse-accent) !important;
+      border-color: var(--infuse-accent) !important;
+    }
+
+    .el-button--primary:hover {
+      background-color: var(--infuse-accent-hover) !important;
+      border-color: var(--infuse-accent-hover) !important;
+    }
+
+    .el-dialog {
+      background: var(--infuse-bg-secondary) !important;
+      border: 1px solid var(--infuse-border) !important;
+      border-radius: var(--infuse-radius-lg) !important;
+    }
+
+    .el-dialog__title {
+      color: var(--infuse-text-primary) !important;
+    }
+
+    .el-dialog__body {
+      color: var(--infuse-text-secondary) !important;
+    }
+
+    .el-table {
+      background: transparent !important;
+    }
+
+    .el-table th {
+      background: var(--infuse-bg-tertiary) !important;
+      color: var(--infuse-text-secondary) !important;
+    }
+
+    .el-table td {
+      background: transparent !important;
+      color: var(--infuse-text-secondary) !important;
+      border-bottom: 1px solid var(--infuse-border) !important;
+    }
+
+    .el-table tr:hover td {
+      background: var(--infuse-bg-hover) !important;
+    }
+
+    .el-empty__description {
+      color: var(--infuse-text-muted) !important;
+    }
+
+    .el-pagination {
+      --el-pagination-bg-color: transparent !important;
+      --el-pagination-button-bg-color: var(--infuse-bg-tertiary) !important;
+      --el-pagination-hover-color: var(--infuse-accent) !important;
+    }
+
+    .el-pagination .el-pager li {
+      background: var(--infuse-bg-tertiary) !important;
+      color: var(--infuse-text-secondary) !important;
+    }
+
+    .el-pagination .el-pager li.active {
+      background: var(--infuse-accent) !important;
+      color: white !important;
+    }
+
+    .el-loading-mask {
+      background: rgba(10, 10, 15, 0.8) !important;
+    }
+
+    .el-message {
+      background: var(--infuse-bg-secondary) !important;
+      border: 1px solid var(--infuse-border) !important;
+    }
+
+    .el-message--success {
+      background: rgba(103, 194, 58, 0.1) !important;
+      border-color: rgba(103, 194, 58, 0.3) !important;
+    }
+
+    .el-message--error {
+      background: rgba(245, 108, 108, 0.1) !important;
+      border-color: rgba(245, 108, 108, 0.3) !important;
+    }
+
+    /* 滚动条样式 */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--infuse-bg-secondary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--infuse-bg-tertiary);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--infuse-border-hover);
+    }
+  </style>
 </head>
 <body>
   <div id="app"></div>

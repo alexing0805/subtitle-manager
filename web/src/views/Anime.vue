@@ -2,8 +2,8 @@
   <div class="tv-shows">
     <!-- 页面标题 -->
     <header class="page-header">
-      <h1 class="page-title">电视剧</h1>
-      <p class="page-subtitle">管理电视剧字幕</p>
+      <h1 class="page-title">动漫</h1>
+      <p class="page-subtitle">管理动漫字幕</p>
     </header>
 
     <!-- 工具栏 -->
@@ -11,7 +11,7 @@
       <div class="search-box">
         <el-input
           v-model="searchQuery"
-          placeholder="搜索电视剧..."
+          placeholder="搜索动漫..."
           prefix-icon="Search"
           clearable
         />
@@ -28,7 +28,7 @@
       </div>
     </div>
 
-    <!-- 电视剧网格 -->
+    <!-- 动漫网格 -->
     <div class="shows-grid">
       <div
         v-for="show in filteredShows"
@@ -39,7 +39,7 @@
         <div class="show-poster">
           <img
             v-if="show.posterPath"
-            :src="`/api/poster/tvshow/${show.id}`"
+            :src="`/api/poster/anime/${show.id}`"
             :alt="show.name"
             class="poster-image"
             @error="handlePosterError"
@@ -91,7 +91,7 @@
       </div>
     </div>
 
-    <!-- 电视剧详情对话框 -->
+    <!-- 动漫详情对话框 -->
     <el-dialog
       v-model="showDetailVisible"
       :title="currentShow?.name"
@@ -104,7 +104,7 @@
           <div class="detail-poster">
             <img
               v-if="currentShow.posterPath"
-              :src="`/api/poster/tvshow/${currentShow.id}`"
+              :src="`/api/poster/anime/${currentShow.id}`"
               :alt="currentShow.name"
               class="poster-image"
               @error="handlePosterError"
@@ -219,7 +219,7 @@
           <div class="episode-poster">
             <img
               v-if="currentShow?.posterPath"
-              :src="`/api/poster/tvshow/${currentShow.id}`"
+              :src="`/api/poster/anime/${currentShow.id}`"
               class="poster-thumb"
             />
             <div v-else class="poster-thumb-placeholder">
@@ -344,7 +344,7 @@ const currentSeasonPoster = computed(() => {
 function getSeasonPosterUrl(posterPath) {
   if (!posterPath) return ''
   // 使用API端点获取海报
-  return `/api/poster/tvshow/${currentShow.value?.id}/season/${activeSeasonTab.value}`
+  return `/api/poster/anime/${currentShow.value?.id}/season/${activeSeasonTab.value}`
 }
 
 // 处理季海报加载错误
@@ -354,10 +354,10 @@ function handleSeasonPosterError(e) {
 
 onMounted(async () => {
   try {
-    await store.fetchTVShows()
-    shows.value = store.tvShows
+    await store.fetchAnime()
+    shows.value = store.anime
   } catch (error) {
-    ElMessage.error('获取电视剧列表失败')
+    ElMessage.error('获取动漫列表失败')
   }
 })
 
@@ -413,7 +413,7 @@ async function handleDoSearch() {
   searchResults.value = [] // 清空之前的结果
 
   try {
-    const url = `/episodes/${currentEpisode.value.id}/search-subtitles`
+    const url = `/anime/${currentEpisode.value.id}/search-subtitles`
     console.log('Calling API:', url)
 
     const response = await api.post(url)
@@ -465,7 +465,7 @@ async function handleDownload(result) {
         filename: result.filename
       }
     }
-    await api.post(`/episodes/${currentEpisode.value.id}/download-subtitle`, requestData)
+    await api.post(`/anime/${currentEpisode.value.id}/download-subtitle`, requestData)
     ElMessage.success('字幕下载成功')
     searchDialogVisible.value = false
     markEpisodeHasSubtitle(currentEpisode.value.id, true)
@@ -482,8 +482,8 @@ async function handleScan() {
     await store.scanLibrary()
     ElMessage.success('扫描完成')
     // 刷新列表
-    await store.fetchTVShows()
-    shows.value = store.tvShows
+    await store.fetchAnime()
+    shows.value = store.anime
   } catch (error) {
     ElMessage.error('扫描失败')
   }

@@ -24,7 +24,7 @@ wheels/
 venv/
 ENV/
 env/
-.venv
+.venv/
 
 # IDE
 .vscode/
@@ -33,38 +33,40 @@ env/
 *.swo
 *~
 
-# Logs
+# Logs and runtime data
 logs/
-*.log
-
-# Data
 data/
+*.log
 *.db
 *.sqlite3
-
-# Test files
-test/movies/*
-test/tvshows/*
-!test/movies/.gitkeep
-!test/tvshows/.gitkeep
 
 # Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# Frontend build (keep dist for Docker)
-# web/dist/
+web/dist/
 
 # Environment variables
 .env
 .env.local
 .env.*.local
 
-# Docker
-.dockerignore
-
 # OS
 .DS_Store
 Thumbs.db
+
+# Local cleanup artifacts
+/test/
+/test_*.py
+/subhd_screenshots/
+/assets/
+/qrcode_page.png
+/index.html
+/*.mkv
+/*.mp4
+/*.avi
+/*.mov
+/*.wmv
+/*.flv
+/*.m4v

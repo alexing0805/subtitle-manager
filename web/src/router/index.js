@@ -22,6 +22,11 @@ const routes = [
     component: TVShows
   },
   {
+    path: '/anime',
+    name: 'Anime',
+    component: () => import('../views/Anime.vue')
+  },
+  {
     path: '/batch-upload',
     name: 'BatchUpload',
     component: BatchUpload

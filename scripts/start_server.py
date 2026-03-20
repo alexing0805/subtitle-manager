@@ -12,7 +12,7 @@ import signal
 from pathlib import Path
 
 # 项目根目录
-ROOT_DIR = Path(__file__).parent
+ROOT_DIR = Path(__file__).resolve().parents[1]
 WEB_DIR = ROOT_DIR / "web"
 
 def start_backend():
@@ -25,7 +25,7 @@ def start_backend():
     # 使用 uvicorn 启动 FastAPI
     cmd = [
         sys.executable, "-m", "uvicorn",
-        "api_server:app",
+        "backend.api_server:app",
         "--host", "0.0.0.0",
         "--port", "8080",
         "--reload"
