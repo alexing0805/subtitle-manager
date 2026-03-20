@@ -1,5 +1,7 @@
 # Subtitle Manager
 
+[Docker Hub 镜像](https://hub.docker.com/r/alexwjxing/subtitle-manager)
+
 一个面向 NAS 和媒体服务器的中文字幕管理工具，提供 Web 界面、手动搜索下载、自动扫描、Plex 刷新和 NASTool Webhook 对接。
 
 ## 特性
@@ -115,6 +117,7 @@ docker build -t subtitle-manager:latest .
 
 - [快速开始](docs/quickstart.md)
 - [NAS 部署](docs/nas-setup.md)
+- [Docker Hub 页面](https://hub.docker.com/r/alexwjxing/subtitle-manager)
 - [Docker Hub 发布说明](docs/docker-hub.md)
 - [项目记忆文档（历史参考，可能滞后）](docs/project-memory.md)
 - [发布检查清单](docs/release-checklist.md)
