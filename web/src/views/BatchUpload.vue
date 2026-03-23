@@ -2,7 +2,7 @@
   <div class="batch-upload">
     <header class="page-header">
       <h1 class="page-title">批量上传字幕</h1>
-      <p class="page-subtitle">为电视剧批量上传匹配的字幕文件</p>
+      <p class="page-subtitle">为电视剧或动漫批量上传并匹配字幕文件</p>
     </header>
 
     <!-- 步骤条 -->
@@ -17,17 +17,22 @@
     <!-- 步骤 1: 选择剧集 -->
     <div v-if="currentStep === 0" class="step-content">
       <div class="apple-card" style="padding: 24px;">
-        <h3 class="step-title">选择电视剧</h3>
+        <h3 class="step-title">选择剧集库</h3>
+
+        <el-radio-group v-model="mediaType" style="margin-bottom: 20px;" @change="handleLibraryTypeChange">
+          <el-radio-button label="tv">电视剧</el-radio-button>
+          <el-radio-button label="anime">动漫</el-radio-button>
+        </el-radio-group>
         
         <el-select
           v-model="selectedShow"
           filterable
-          placeholder="搜索或选择电视剧"
+          placeholder="搜索或选择条目"
           style="width: 100%; margin-bottom: 20px;"
           @change="handleShowChange"
         >
           <el-option
-            v-for="show in tvShows"
+            v-for="show in mediaShows"
             :key="show.id"
             :label="show.name"
             :value="show.id"
@@ -260,6 +265,7 @@ import {
 
 const store = useSubtitleStore()
 const currentStep = ref(0)
+const mediaType = ref('tv')
 const selectedShow = ref('')
 const selectedSeason = ref(null)
 const subtitleFiles = ref([])
@@ -269,36 +275,12 @@ const uploadProgress = ref(0)
 const uploadStatus = ref('')
 const uploadStatusText = ref('')
 
-const tvShows = ref([
-  // 模拟数据，实际从API获取
-  {
-    id: 1,
-    name: '权力的游戏',
-    year: 2011,
-    seasonCount: 8,
-    episodeCount: 73,
-    seasons: [
-      {
-        number: 1,
-        episodes: [
-          { id: 's1e1', episodeNumber: 1, name: '凛冬将至', filename: 'Game.of.Thrones.S01E01.1080p.mkv', hasSubtitle: true },
-          { id: 's1e2', episodeNumber: 2, name: '国王大道', filename: 'Game.of.Thrones.S01E02.1080p.mkv', hasSubtitle: false },
-          { id: 's1e3', episodeNumber: 3, name: '雪诺大人', filename: 'Game.of.Thrones.S01E03.1080p.mkv', hasSubtitle: false },
-        ]
-      },
-      {
-        number: 2,
-        episodes: [
-          { id: 's2e1', episodeNumber: 1, name: '北境不忘', filename: 'Game.of.Thrones.S02E01.1080p.mkv', hasSubtitle: false },
-          { id: 's2e2', episodeNumber: 2, name: '夜之国度', filename: 'Game.of.Thrones.S02E02.1080p.mkv', hasSubtitle: false },
-        ]
-      }
-    ]
-  }
-])
+const mediaShows = computed(() => {
+  return mediaType.value === 'anime' ? store.anime : store.tvShows
+})
 
 const selectedShowData = computed(() => {
-  return tvShows.value.find(s => s.id === selectedShow.value)
+  return mediaShows.value.find(s => String(s.id) === String(selectedShow.value))
 })
 
 const currentSeason = computed(() => {
@@ -332,12 +314,21 @@ const confirmedMatches = computed(() => {
 
 onMounted(async () => {
   try {
-    // await store.fetchTVShows()
-    // tvShows.value = store.tvShows
+    await Promise.all([
+      store.fetchTVShows(),
+      store.fetchAnime()
+    ])
   } catch (error) {
-    ElMessage.error('获取电视剧列表失败')
+    ElMessage.error('获取剧集列表失败')
   }
 })
+
+function handleLibraryTypeChange() {
+  selectedShow.value = ''
+  selectedSeason.value = null
+  fileMatches.value = []
+  subtitleFiles.value = []
+}
 
 function handleShowChange() {
   selectedSeason.value = null
@@ -346,18 +337,26 @@ function handleShowChange() {
 }
 
 function handleFileChange(file) {
-  const parsedInfo = parseSubtitleFilename(file.name)
+  const rawFile = file.raw || file
+  const parsedInfo = parseSubtitleFilename(rawFile.name)
   const match = {
-    file: file.raw,
+    uid: rawFile.uid || `${rawFile.name}-${rawFile.size}-${Date.now()}`,
+    file: rawFile,
     parsedInfo,
     selectedEpisode: null,
     episode: null
+  }
+
+  // 去重更新
+  const existingIndex = fileMatches.value.findIndex(m => m.uid === match.uid)
+  if (existingIndex !== -1) {
+    fileMatches.value.splice(existingIndex, 1)
   }
   
   // 自动匹配
   if (parsedInfo && currentSeason.value) {
     const matchedEpisode = currentSeason.value.episodes.find(
-      ep => ep.episodeNumber === parsedInfo.episode
+      ep => ep.episodeNumber === parsedInfo.episode && (!parsedInfo.season || selectedSeason.value === parsedInfo.season)
     )
     if (matchedEpisode) {
       match.selectedEpisode = matchedEpisode.id
@@ -369,7 +368,8 @@ function handleFileChange(file) {
 }
 
 function handleFileRemove(file) {
-  const index = fileMatches.value.findIndex(m => m.file.uid === file.uid)
+  const uid = file.uid || file.raw?.uid
+  const index = fileMatches.value.findIndex(m => m.uid === uid)
   if (index > -1) {
     fileMatches.value.splice(index, 1)
   }
@@ -409,7 +409,12 @@ function handleEpisodeSelect(match, episodeId) {
 }
 
 function removeMatch(index) {
-  confirmedMatches.value.splice(index, 1)
+  const match = confirmedMatches.value[index]
+  if (!match) return
+  const realIndex = fileMatches.value.findIndex(item => item.uid === match.uid)
+  if (realIndex > -1) {
+    fileMatches.value.splice(realIndex, 1)
+  }
 }
 
 async function handleUpload() {
@@ -417,44 +422,57 @@ async function handleUpload() {
   uploadProgress.value = 0
   uploadStatus.value = ''
   uploadStatusText.value = '准备上传...'
-  
+
   const formData = new FormData()
   formData.append('showId', selectedShow.value)
-  formData.append('season', selectedSeason.value)
-  
-  confirmedMatches.value.forEach((match, index) => {
-    formData.append(`subtitles[${index}][file]`, match.file)
-    formData.append(`subtitles[${index}][episodeId]`, match.episode.id)
-    formData.append(`subtitles[${index}][episodeNumber]`, match.episode.episodeNumber)
+  formData.append('seasonNumber', selectedSeason.value)
+  formData.append('mediaType', mediaType.value)
+
+  const matches = confirmedMatches.value.map((match, index) => {
+    formData.append('files', match.file)
+    return {
+      fileIndex: index,
+      episodeId: match.episode.id,
+      episodeNumber: match.episode.episodeNumber,
+      filename: match.file.name
+    }
   })
+  formData.append('matches', JSON.stringify(matches))
   
   try {
     uploadStatusText.value = '正在上传字幕文件...'
     
-    // 模拟上传进度
     const interval = setInterval(() => {
       if (uploadProgress.value < 90) {
         uploadProgress.value += 10
       }
     }, 200)
     
-    await store.batchUploadSubtitles(formData)
+    const response = await store.batchUploadSubtitles(formData)
     
     clearInterval(interval)
     uploadProgress.value = 100
-    uploadStatus.value = 'success'
-    uploadStatusText.value = '上传完成！'
-    
-    ElMessage.success('字幕上传成功')
+    uploadStatus.value = response.success ? 'success' : 'warning'
+    uploadStatusText.value = response.message || '上传完成'
+
+    if (response.errors?.length) {
+      ElMessageBox.alert(
+        response.errors.map(item => `${item.match?.filename || '未知文件'}：${item.message}`).join('\n'),
+        '部分字幕上传失败',
+        { type: 'warning' }
+      )
+    } else {
+      ElMessage.success(response.message || '字幕上传成功')
+    }
     
     setTimeout(() => {
       currentStep.value = 0
       resetForm()
-    }, 2000)
+    }, 1200)
   } catch (error) {
     uploadStatus.value = 'exception'
     uploadStatusText.value = '上传失败'
-    ElMessage.error('上传失败: ' + error.message)
+    ElMessage.error('上传失败: ' + (error.response?.data?.detail || error.message))
   } finally {
     isUploading.value = false
   }

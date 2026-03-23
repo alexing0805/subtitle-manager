@@ -1769,13 +1769,56 @@ class SubtitleManager:
         video_info = NFOParser.get_video_info_with_nfo(movie['path'])
         return await self._search_subtitles(video_info)
     
-    async def upload_subtitle(self, show_id: int, season_number: int, episode_id: str, subtitle_file):
-        """上传字幕"""
-        return {"success": True}
+    async def upload_subtitle(self, show_id: int, season_number: int, episode_id: str, subtitle_file, media_type: str = 'tv'):
+        """上传单个批量匹配后的字幕。"""
+        show = self.get_anime_show(show_id) if media_type == 'anime' else self.get_tvshow(show_id)
+        if not show:
+            return {"success": False, "message": "剧集不存在"}
+
+        episodes = self.get_anime_episodes(show_id, season_number) if media_type == 'anime' else self.get_episodes(show_id, season_number)
+        episode = next((ep for ep in episodes if str(ep.get('id')) == str(episode_id)), None)
+        if not episode:
+            return {"success": False, "message": "剧集不存在"}
+
+        return await self.upload_single_subtitle(episode_id, subtitle_file)
     
     async def upload_single_subtitle(self, episode_id: str, subtitle_file):
-        """上传单个字幕"""
-        return {"success": True}
+        """上传单个字幕到剧集目录，并走统一规范化链路。"""
+        episode = self._find_episode_by_id(self.get_tvshows(), episode_id)
+        if not episode:
+            episode = self._find_episode_by_id(self.get_anime(), episode_id)
+        if not episode:
+            return {"success": False, "message": "剧集不存在"}
+
+        video_path = episode['path']
+        original_name = getattr(subtitle_file, 'filename', None) or 'uploaded-subtitle.srt'
+        suffix = os.path.splitext(original_name)[1].lower() or '.srt'
+        temp_path = os.path.splitext(
+            get_subtitle_save_path(video_path, lang_code="zh-cn", plex_format=settings.PLEX_NAMING_FORMAT)
+        )[0] + f".upload{suffix}"
+
+        content = await subtitle_file.read()
+        if not content:
+            return {"success": False, "message": "字幕文件为空"}
+
+        with open(temp_path, 'wb') as file_obj:
+            file_obj.write(content)
+        logger.info(f"Uploaded subtitle staged: {temp_path}")
+
+        normalized = self._normalize_downloaded_subtitle(video_path, temp_path)
+        plex_refresh = await self._refresh_plex_media(video_path)
+        self._mark_cached_video_has_subtitle(video_path, True)
+
+        result = {
+            "success": True,
+            "message": "字幕上传成功",
+            "path": normalized["path"],
+            "convertedToSrt": normalized.get("converted", False),
+            "plexRefresh": plex_refresh,
+        }
+        if normalized.get("warning"):
+            result["warning"] = normalized["warning"]
+        return result
     
     def get_settings(self):
         """获取设置"""

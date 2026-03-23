@@ -625,32 +625,41 @@ async def batch_upload_subtitles(
     showId: int = Form(...),
     seasonNumber: int = Form(...),
     files: List[UploadFile] = File(...),
-    matches: str = Form(...)  # JSON 字符串
+    matches: str = Form(...),  # JSON 字符串
+    mediaType: str = Form("tv"),
 ):
     """批量上传字幕文件"""
     try:
         import json
         matches_data = json.loads(matches)
-        
+
         results = []
+        errors = []
         for match in matches_data:
             file_index = match.get('fileIndex')
             episode_id = match.get('episodeId')
-            
-            if file_index is not None and file_index < len(files):
-                file = files[file_index]
-                result = await subtitle_manager.upload_subtitle(
-                    show_id=showId,
-                    season_number=seasonNumber,
-                    episode_id=episode_id,
-                    subtitle_file=file
-                )
+
+            if file_index is None or file_index >= len(files):
+                errors.append({"match": match, "message": "文件索引无效"})
+                continue
+
+            result = await subtitle_manager.upload_subtitle(
+                show_id=showId,
+                season_number=seasonNumber,
+                episode_id=episode_id,
+                subtitle_file=files[file_index],
+                media_type=mediaType,
+            )
+            if result.get("success"):
                 results.append(result)
-        
+            else:
+                errors.append({"match": match, "message": result.get("message", "上传失败")})
+
         return {
-            "success": True,
-            "message": f"成功上传 {len(results)} 个字幕",
-            "data": results
+            "success": len(results) > 0 and not errors,
+            "message": f"成功上传 {len(results)} 个字幕" + (f"，失败 {len(errors)} 个" if errors else ""),
+            "data": results,
+            "errors": errors,
         }
     except Exception as e:
         logger.error(f"批量上传字幕失败: {e}")
