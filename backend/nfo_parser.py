@@ -178,22 +178,36 @@ class NFOParser:
         """
         查找视频文件对应的 NFO 文件
 
-        查找顺序：
-        1. 同目录下与视频文件同名的 .nfo 文件
-        2. 同目录下的 movie.nfo
-        3. 剧集目录或父目录中的 season.nfo / tvshow.nfo
+        电影：优先使用同目录下的 movie.nfo 或 {name}.nfo
+        剧集：优先使用 series-level NFO（season.nfo / tvshow.nfo），
+              因为 episode-level NFO 通常是旧数据，series-level NFO 才是刮削工具的主记录
         """
         video_dir = Path(video_path).parent
         video_name = Path(video_path).stem
         checked_paths = []
 
-        # 先查当前目录里的专属 NFO，再回退到系列级 NFO。
-        candidate_groups = [
-            [video_dir / f"{video_name}.nfo", video_dir / "movie.nfo"],
-            [video_dir / "season.nfo", video_dir / "tvshow.nfo"],
-            [video_dir.parent / "season.nfo", video_dir.parent / "tvshow.nfo"],
-            [video_dir.parent.parent / "tvshow.nfo"],
-        ]
+        # 判断是否为剧集文件（包含 SxxExx 模式）
+        is_tv_episode = bool(re.search(r'[Ss]\d{1,2}[Ee]\d{1,2}', video_name))
+
+        if is_tv_episode:
+            # 剧集：优先使用 series-level NFO
+            # 查找顺序：season.nfo -> tvshow.nfo -> episode-level NFO
+            candidate_groups = [
+                # series-level NFO（优先）
+                [video_dir / "season.nfo", video_dir / "tvshow.nfo"],
+                [video_dir.parent / "season.nfo", video_dir.parent / "tvshow.nfo"],
+                [video_dir.parent.parent / "tvshow.nfo"],
+                # episode-level NFO（兜底）
+                [video_dir / f"{video_name}.nfo"],
+            ]
+        else:
+            # 电影：优先使用 movie.nfo 或 {name}.nfo
+            candidate_groups = [
+                [video_dir / f"{video_name}.nfo", video_dir / "movie.nfo"],
+                [video_dir / "season.nfo", video_dir / "tvshow.nfo"],
+                [video_dir.parent / "season.nfo", video_dir.parent / "tvshow.nfo"],
+                [video_dir.parent.parent / "tvshow.nfo"],
+            ]
 
         for candidates in candidate_groups:
             for candidate in candidates:
