@@ -573,8 +573,21 @@ class BaseSubtitleSource(ABC):
             if os.path.splitext(name)[1].lower() in DOWNLOADABLE_SUBTITLE_EXTENSIONS
         ]
         if not candidates:
+            logger.info(f"Archive subtitle candidates: none from {names}")
             return None
-        return max(candidates, key=self._archive_member_score)
+        scored = sorted(
+            ((name, self._archive_member_score(name)) for name in candidates),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+        logger.info(
+            "Archive subtitle candidates: " + ", ".join(
+                f"{name}=>lang={score[0]},fmt={score[1]}" for name, score in scored
+            )
+        )
+        selected = scored[0][0]
+        logger.info(f"Archive subtitle selected: {selected}")
+        return selected
 
     async def _save_archive_member(self, archive, member_name: str, save_path: str) -> str:
         """Extract one member from an archive to the target directory."""
@@ -601,7 +614,9 @@ class BaseSubtitleSource(ABC):
 
             if detected_extension == ".zip":
                 with zipfile.ZipFile(io.BytesIO(content)) as archive:
-                    member_name = self._pick_archive_member(archive.namelist())
+                    archive_names = archive.namelist()
+                    logger.info(f"ZIP archive members: {archive_names}")
+                    member_name = self._pick_archive_member(archive_names)
                     if not member_name:
                         return None
                     return await self._save_archive_member(archive, member_name, save_path)
@@ -612,7 +627,9 @@ class BaseSubtitleSource(ABC):
                 import py7zr
 
                 with py7zr.SevenZipFile(io.BytesIO(content), mode="r") as archive:
-                    member_name = self._pick_archive_member(archive.getnames())
+                    archive_names = archive.getnames()
+                    logger.info(f"7z archive members: {archive_names}")
+                    member_name = self._pick_archive_member(archive_names)
                     if not member_name:
                         return None
                     with tempfile.TemporaryDirectory(prefix="subtitle-manager-7z-") as tmp_dir:

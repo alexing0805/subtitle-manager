@@ -1140,7 +1140,9 @@ class SubtitleManager:
 
             helper = SubHDSource()
             with py7zr.SevenZipFile(archive_path, mode="r") as archive:
-                member_name = helper._pick_archive_member(archive.getnames())
+                archive_names = archive.getnames()
+                logger.info(f"Local 7z archive members: {archive_names}")
+                member_name = helper._pick_archive_member(archive_names)
                 if not member_name:
                     logger.warning("7z archive does not contain a supported subtitle file")
                     return None
