@@ -1143,6 +1143,7 @@ class SubtitleManager:
                 archive_names = archive.getnames()
                 logger.info(f"Local 7z archive members: {archive_names}")
                 member_name = helper._pick_archive_member(archive_names)
+                logger.info(f"Local 7z archive selected member: {member_name}")
                 if not member_name:
                     logger.warning("7z archive does not contain a supported subtitle file")
                     return None

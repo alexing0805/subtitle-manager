@@ -575,14 +575,35 @@ class BaseSubtitleSource(ABC):
         if not candidates:
             logger.info(f"Archive subtitle candidates: none from {names}")
             return None
+
+        def _priority_bucket(name: str) -> int:
+            normalized = name.replace("\\", "/").split("/")[-1].lower()
+            simplified_markers = ("简中", "简体", "chs", ".sc.", " gb", "gbk")
+            traditional_markers = ("繁中", "繁體", "繁体", "cht", ".tc.", "big5")
+            bilingual_markers = ("双语", "中英")
+
+            has_simplified = any(marker in normalized for marker in simplified_markers)
+            has_traditional = any(marker in normalized for marker in traditional_markers)
+            has_bilingual = any(marker in normalized for marker in bilingual_markers)
+
+            if has_simplified and has_bilingual:
+                return 4
+            if has_simplified:
+                return 3
+            if has_bilingual and not has_traditional:
+                return 2
+            if has_traditional:
+                return 1
+            return 0
+
         scored = sorted(
-            ((name, self._archive_member_score(name)) for name in candidates),
-            key=lambda item: item[1],
+            ((name, _priority_bucket(name), self._archive_member_score(name)) for name in candidates),
+            key=lambda item: (item[1], item[2]),
             reverse=True,
         )
         logger.info(
             "Archive subtitle candidates: " + ", ".join(
-                f"{name}=>lang={score[0]},fmt={score[1]}" for name, score in scored
+                f"{name}=>bucket={bucket},lang={score[0]},fmt={score[1]}" for name, bucket, score in scored
             )
         )
         selected = scored[0][0]
