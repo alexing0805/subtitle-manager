@@ -247,9 +247,9 @@ class NFOParser:
                 if series_nfo.exists():
                     series_info = NFOParser.parse_movie_nfo(str(series_nfo))
                     if series_info and series_info.get('tmdbid'):
-                        # 只有当 tmdbid 看起来是有效的数字时才使用
+                        # 只要 tmdbid 是正整数就视为有效；动漫里存在 5 位 TMDB ID
                         series_tmdbid = str(series_info['tmdbid']).strip()
-                        if series_tmdbid.isdigit() and len(series_tmdbid) >= 6:
+                        if series_tmdbid.isdigit() and int(series_tmdbid) > 0:
                             series_tmdb_id = series_tmdbid
                             series_info_data = series_info  # 保存备用
                             logger.info(f"从 series-level NFO 获取 TMDB ID: {series_nfo}, TMDB ID: {series_tmdb_id}")
@@ -283,36 +283,45 @@ class NFOParser:
                     if nfo_info.get('search_names'):
                         info['search_names'] = nfo_info['search_names']
 
-                # 重要：对于 TV 剧集，覆盖 episode NFO 中的 originaltitle/title
-                # 防止 build_title_aliases 从 info['nfo'] 读到错误的剧集名（如开拓者）
+                # 重要：对于剧集/动漫分集，覆盖 episode NFO 中的 originaltitle/title
+                # 防止 build_title_aliases 从 info['nfo'] 读到单集标题或错误翻译（如开拓者、两面宿傩）
                 # 策略：优先从 series NFO 获取，其次从目录路径提取
-                series_title_from_path = None
-                if is_tv_episode:
-                    # 从目录路径提取系列名：/tvshows/.../辐射 Fallout (2024)/Season 2/文件名.mkv
-                    path_parts = Path(video_path).parts
-                    # 找到 tvshows 之后的第一层或第二层目录作为系列目录
-                    try:
-                        tv_idx = path_parts.index('tvshows')
-                        if len(path_parts) > tv_idx + 2:
-                            # tvshows/类型/系列名(年份) 或 tvshows/类型/系列名/Season X
-                            series_dir = path_parts[tv_idx + 2]
-                            # 去掉可能的 Season X 子目录
-                            if series_dir.lower().startswith('season'):
-                                series_dir = path_parts[tv_idx + 1]
-                            # 清理系列名（去掉年份括号）
-                            series_title_from_path = re.sub(r'\s*\(\d{4}\)\s*$', '', series_dir).strip()
-                            logger.info(f"从目录路径提取系列名: {series_title_from_path}")
-                    except (ValueError, IndexError):
-                        pass
+                series_title = None
+                if is_tv_episode and series_info_data:
+                    series_title = (
+                        series_info_data.get('originaltitle')
+                        or series_info_data.get('title')
+                        or None
+                    )
+                    if series_title:
+                        series_title = series_title.strip()
+                        logger.info(f"从 series-level NFO 获取系列名: {series_title}")
 
-                if is_tv_episode and series_title_from_path:
-                    # 用目录路径中的系列名覆盖 NFO 数据
+                if is_tv_episode and not series_title:
+                    path_parts = Path(video_path).parts
+                    for root_name in ('tvshows', 'anime'):
+                        try:
+                            root_idx = path_parts.index(root_name)
+                            if len(path_parts) > root_idx + 2:
+                                series_dir = path_parts[root_idx + 2]
+                                if series_dir.lower().startswith('season') and len(path_parts) > root_idx + 1:
+                                    series_dir = path_parts[root_idx + 1]
+                                series_title = re.sub(r'\s*\(\d{4}\)\s*$', '', series_dir).strip()
+                                if series_title:
+                                    logger.info(f"从目录路径提取系列名: {series_title}")
+                                    break
+                        except (ValueError, IndexError):
+                            continue
+
+                if is_tv_episode and series_title:
                     if not info['nfo']:
                         info['nfo'] = {}
-                    info['nfo']['title'] = series_title_from_path
-                    info['nfo']['originaltitle'] = series_title_from_path
-                    info['nfo']['search_names'] = [series_title_from_path]
-                    logger.info(f"使用目录路径系列名覆盖 NFO 标题: {series_title_from_path}")
+                    info['nfo']['title'] = series_title
+                    info['nfo']['originaltitle'] = series_title
+                    info['nfo']['search_names'] = [series_title]
+                    info['title'] = series_title
+                    info['original_title'] = series_title
+                    logger.info(f"使用系列名覆盖 episode NFO 标题: {series_title}")
 
                 logger.info(f"成功加载 NFO 信息: {video_path}, TMDB ID: {info.get('tmdb_id')}")
 
