@@ -233,9 +233,9 @@ class NFOParser:
 
         # 电视剧：优先从 series-level NFO（tvshow.nfo）获取 TMDB ID
         # 因为 episode-level NFO 可能包含旧的/错误的 TMDB ID
+        # 注意：只有当 series-level NFO 有有效的 tmdbid 时才使用，否则不信任 NFO 的 TMDB ID
         tmdb_id = None
         if is_tv_episode:
-            # 查找 series-level NFO
             video_dir = Path(video_path).parent
             series_nfo_paths = [
                 video_dir / "tvshow.nfo",
@@ -246,9 +246,12 @@ class NFOParser:
                 if series_nfo.exists():
                     series_info = NFOParser.parse_movie_nfo(str(series_nfo))
                     if series_info and series_info.get('tmdbid'):
-                        tmdb_id = series_info['tmdbid']
-                        logger.info(f"从 series-level NFO 获取 TMDB ID: {series_nfo}, TMDB ID: {tmdb_id}")
-                        break
+                        # 只有当 tmdbid 看起来是有效的数字时才使用
+                        series_tmdbid = str(series_info['tmdbid']).strip()
+                        if series_tmdbid.isdigit() and len(series_tmdbid) >= 6:
+                            tmdb_id = series_tmdbid
+                            logger.info(f"从 series-level NFO 获取 TMDB ID: {series_nfo}, TMDB ID: {tmdb_id}")
+                            break
 
         # 查找并解析 episode-level NFO（用于其他信息）
         nfo_path = NFOParser.find_nfo_file(video_path)
@@ -259,12 +262,11 @@ class NFOParser:
                 info['nfo'] = nfo_info
                 info['nfo_path'] = nfo_path
 
-                # TMDB ID：优先使用 series-level NFO 的值（如果获取到了）
-                # 否则使用 episode-level NFO 的值
+                # TMDB ID：只使用 series-level NFO 的值（已验证过）
+                # 如果 series-level 没有有效 TMDB ID，则不使用 NFO 的 TMDB ID
+                # 这样会 fallback 到用文件名搜索，避免错误翻译
                 if tmdb_id:
                     info['tmdb_id'] = tmdb_id
-                elif nfo_info.get('tmdbid'):
-                    info['tmdb_id'] = nfo_info['tmdbid']
 
                 if nfo_info.get('imdbid') or nfo_info.get('imdb_id'):
                     info['imdb_id'] = nfo_info.get('imdbid') or nfo_info.get('imdb_id')
