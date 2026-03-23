@@ -407,9 +407,10 @@ class SubHDSource(BaseSubtitleSource):
             return ".srt"
         return ".srt"
 
-    def _archive_member_score(self, archive_name: str) -> tuple[int, int, str]:
-        """Prefer Chinese subtitle members and more usable formats inside archives."""
-        normalized = archive_name.replace("\\", "/").split("/")[-1].lower()
+    def _archive_member_score(self, archive_name: str) -> tuple[int, int, int, str]:
+        """Prefer simplified Chinese subtitle members and more usable formats inside archives."""
+        raw_name = archive_name.replace("\\", "/").split("/")[-1]
+        normalized = raw_name.lower()
         stem, extension = os.path.splitext(normalized)
 
         format_score = {
@@ -424,21 +425,37 @@ class SubHDSource(BaseSubtitleSource):
             ".sub": 48,
         }.get(extension, 0)
 
-        chinese_markers = (
-            "zh", "zho", "chi", "chs", "cht", "chs&eng",
-            "中文", "中字", "中英", "双语", "简体", "繁体", "国配",
-        )
-        foreign_only_markers = ("eng", "english", "英文", "英语", "jpn", "japanese", "日语", "korean", "韩语")
+        has_simplified = ("简" in raw_name) or ("chs" in normalized)
+        has_traditional = ("繁" in raw_name) or ("cht" in normalized)
+        has_bilingual = ("双语" in raw_name) or ("中英" in raw_name)
+        has_chinese = has_simplified or has_traditional or any(marker in stem for marker in ("zh", "zho", "chi", "中文", "中字"))
+        has_foreign_only = any(marker in stem for marker in ("eng", "english", "英文", "英语", "jpn", "japanese", "日语", "korean", "韩语")) and not has_chinese
+
+        priority_bucket = 0
+        if has_simplified and has_bilingual:
+            priority_bucket = 5
+        elif has_simplified:
+            priority_bucket = 4
+        elif has_bilingual and not has_traditional:
+            priority_bucket = 3
+        elif has_traditional:
+            priority_bucket = 2
+        elif has_chinese:
+            priority_bucket = 1
 
         language_score = 0
-        if any(marker in stem for marker in chinese_markers):
+        if has_chinese:
             language_score += 80
-        if "双语" in stem or "中英" in stem:
-            language_score += 20
-        if any(marker in stem for marker in foreign_only_markers) and not any(marker in stem for marker in chinese_markers):
+        if has_simplified:
+            language_score += 40
+        if has_traditional:
+            language_score -= 10
+        if has_bilingual:
+            language_score += 15
+        if has_foreign_only:
             language_score -= 40
 
-        return (language_score, format_score, normalized)
+        return (priority_bucket, language_score, format_score, normalized)
 
     def _pick_archive_member(self, names: List[str]) -> str | None:
         """Pick the best subtitle member from a compressed archive."""
@@ -447,8 +464,17 @@ class SubHDSource(BaseSubtitleSource):
             if os.path.splitext(name)[1].lower() in self.SUPPORTED_SUBTITLE_EXTENSIONS
         ]
         if not candidates:
+            logger.info(f"SubHD archive subtitle candidates: none from {names}")
             return None
-        return max(candidates, key=self._archive_member_score)
+        scored = sorted(((name, self._archive_member_score(name)) for name in candidates), key=lambda item: item[1], reverse=True)
+        logger.info(
+            "SubHD archive subtitle candidates: " + ", ".join(
+                f"{name}=>bucket={score[0]},lang={score[1]},fmt={score[2]}" for name, score in scored
+            )
+        )
+        selected = scored[0][0]
+        logger.info(f"SubHD archive subtitle selected: {selected}")
+        return selected
 
     async def _save_archive_member(self, archive, member_name: str, save_path: str) -> str:
         """Extract one member from an archive to the target directory."""
