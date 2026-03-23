@@ -164,7 +164,7 @@
                   <el-option
                     v-for="ep in availableEpisodes"
                     :key="ep.id"
-                    :label="`E${String(ep.episodeNumber).padStart(2, '0')} - ${ep.name}`"
+                    :label="`E${String(ep.episodeNumber).padStart(2, '0')} - ${ep.name || ep.filename || '未命名剧集'}`"
                     :value="ep.id"
                   />
                 </el-select>
@@ -214,7 +214,7 @@
             <el-table-column label="匹配剧集" width="200">
               <template #default="{ row }">
                 <span v-if="row.episode">
-                  E{{ String(row.episode.episodeNumber).padStart(2, '0') }} - {{ row.episode.name }}
+                  E{{ String(row.episode.episodeNumber).padStart(2, '0') }} - {{ row.episode.name || row.episode.filename || '未命名剧集' }}
                 </span>
               </template>
             </el-table-column>
@@ -376,30 +376,36 @@ function handleFileRemove(file) {
 }
 
 function parseSubtitleFilename(filename) {
-  // 解析文件名中的 S01E01 格式
-  const patterns = [
-    /[Ss](\d{1,2})[Ee](\d{1,2})/i,
-    /(\d{1,2})x(\d{1,2})/i,
-    /[Ee]p?(\d{1,2})/i
+  const cleanName = filename.replace(/\.[^.]+$/, '')
+
+  // 优先匹配标准格式
+  const seasonEpisodePatterns = [
+    /[Ss](\d{1,2})[Ee](\d{1,3})/i,
+    /(\d{1,2})x(\d{1,3})/i,
+    /第\s*(\d{1,3})\s*[集话話]/,
+    /[Ee][Pp]?(\d{1,3})/,
+    /\b(\d{1,3})\b(?=\s*(?:END|v\d+)?\s*$)/i,
+    /[-_\s]\s*(\d{1,3})\s*[-_\s]/,
+    /\[(\d{1,3})\]/,
   ]
-  
-  for (const pattern of patterns) {
-    const match = filename.match(pattern)
-    if (match) {
-      if (match[2]) {
-        return {
-          season: parseInt(match[1]),
-          episode: parseInt(match[2])
-        }
-      } else {
-        return {
-          season: selectedSeason.value,
-          episode: parseInt(match[1])
-        }
+
+  for (const pattern of seasonEpisodePatterns) {
+    const match = cleanName.match(pattern)
+    if (!match) continue
+
+    if (match[2]) {
+      return {
+        season: parseInt(match[1]),
+        episode: parseInt(match[2])
       }
     }
+
+    return {
+      season: selectedSeason.value,
+      episode: parseInt(match[1])
+    }
   }
-  
+
   return null
 }
 
