@@ -309,16 +309,19 @@ class SubtitleManager:
         if nfo_info:
             logger.info(f"使用 NFO 文件信息: TMDB ID={nfo_info.get('tmdbid')}, IMDB ID={nfo_info.get('imdbid')}")
 
-        # 如果有 NFO 中的 TMDB ID，直接使用
-        if video_info.get('tmdb_id') and settings.TMDB_API_KEY and tmdb_api.api_key:
+        # 如果有 NFO 中的 TMDB ID（对于 TV 剧集使用 series-level TMDB ID），直接使用
+        # 注意：video_info['series_tmdb_id'] 是从 series-level NFO 获取的正确 TMDB ID
+        # 如果存在，优先使用它来查询 TMDB（因为 episode-level NFO 的 ID 可能是错误的）
+        query_tmdb_id = video_info.get('series_tmdb_id') or video_info.get('tmdb_id')
+        if query_tmdb_id and settings.TMDB_API_KEY and tmdb_api.api_key:
             try:
                 tmdb_info = await (
-                    tmdb_api.get_movie_details(video_info['tmdb_id'])
+                    tmdb_api.get_movie_details(query_tmdb_id)
                     if video_info.get('is_movie')
-                    else tmdb_api.get_tv_details(video_info['tmdb_id'])
+                    else tmdb_api.get_tv_details(query_tmdb_id)
                 )
                 if tmdb_info:
-                    logger.info(f"通过 NFO 的 TMDB ID 获取信息成功: {tmdb_info.get('title')}")
+                    logger.info(f"通过 TMDB ID {query_tmdb_id} 获取信息成功: {tmdb_info.get('title')}")
                     video_info['tmdb_title'] = tmdb_info.get('title')
                     video_info['imdb_id'] = tmdb_info.get('imdb_id')
                     # 用 TMDB 的标题覆盖 search_names，避免 episode-level NFO 的错误标题干扰
