@@ -1133,6 +1133,8 @@ class SubtitleManager:
     def _extract_7z_subtitle(self, archive_path: str) -> str | None:
         """Extract the best subtitle member from a local 7z archive."""
         try:
+            import shutil
+            import tempfile
             import py7zr
             from backend.subtitle_sources import SubHDSource
 
@@ -1142,18 +1144,19 @@ class SubtitleManager:
                 if not member_name:
                     logger.warning("7z archive does not contain a supported subtitle file")
                     return None
-                extracted = archive.read([member_name])
-                member_data = extracted.get(member_name)
-                if member_data is None:
-                    logger.warning(f"7z archive member missing after extraction: {member_name}")
-                    return None
-                member_bytes = member_data.read() if hasattr(member_data, "read") else member_data
-                extension = os.path.splitext(member_name)[1] or ".srt"
-                target_path = os.path.splitext(archive_path)[0] + extension
-                with open(target_path, "wb") as file_obj:
-                    file_obj.write(member_bytes)
-                logger.info(f"Subtitle extracted from local 7z: {target_path}")
-                return target_path
+
+                with tempfile.TemporaryDirectory(prefix="subtitle-manager-7z-") as tmp_dir:
+                    archive.extract(path=tmp_dir, targets=[member_name])
+                    extracted_path = os.path.join(tmp_dir, member_name)
+                    if not os.path.exists(extracted_path):
+                        logger.warning(f"7z archive member missing after extraction: {member_name}")
+                        return None
+                    extension = os.path.splitext(member_name)[1] or ".srt"
+                    target_path = os.path.splitext(archive_path)[0] + extension
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    shutil.move(extracted_path, target_path)
+                    logger.info(f"Subtitle extracted from local 7z: {target_path}")
+                    return target_path
         except Exception as exc:
             logger.error(f"Failed to extract local 7z subtitle: {exc}")
             return None
