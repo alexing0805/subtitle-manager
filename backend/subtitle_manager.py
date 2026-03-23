@@ -321,6 +321,13 @@ class SubtitleManager:
                     logger.info(f"通过 NFO 的 TMDB ID 获取信息成功: {tmdb_info.get('title')}")
                     video_info['tmdb_title'] = tmdb_info.get('title')
                     video_info['imdb_id'] = tmdb_info.get('imdb_id')
+                    # 用 TMDB 的标题覆盖 search_names，避免 episode-level NFO 的错误标题干扰
+                    if video_info.get('nfo') and tmdb_info.get('title'):
+                        video_info['nfo']['search_names'] = [
+                            tmdb_info['title'],
+                            tmdb_info.get('original_title', tmdb_info['title']),
+                        ]
+                        logger.info(f"使用 TMDB 标题更新 search_names: {video_info['nfo']['search_names']}")
             except Exception as e:
                 logger.warning(f"通过 TMDB ID 获取信息失败: {e}")
 
