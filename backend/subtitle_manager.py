@@ -667,7 +667,7 @@ class SubtitleManager:
 
         if video_info.get('season') and video_info.get('episode'):
             before_filter = len(sorted_results)
-            sorted_results = [item for item in sorted_results if item.score >= 0.35]
+            sorted_results = [item for item in sorted_results if item.score >= 0.45]
             if before_filter != len(sorted_results):
                 logger.info(f"TV episodic rerank filter removed {before_filter - len(sorted_results)} weak subtitle matches")
 

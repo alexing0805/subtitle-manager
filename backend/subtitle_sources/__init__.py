@@ -443,11 +443,15 @@ def score_release_title(
             score += 0.10
 
         if explicit_episodes and episode not in explicit_episodes:
-            score -= 0.34
+            score -= 0.55
 
-        # 如果候选明确写了其它集号/季号，就进一步强力降权，避免 S02E06/S01E01 混入前排
+        # 如果候选明确写了其它集号/季号，就进一步强力降权，避免 S02E06/S01E54 这类结果混入前排
         if explicit_seasons and explicit_episodes and (season not in explicit_seasons or episode not in explicit_episodes):
-            score -= 0.20
+            score -= 0.30
+
+        # 对于明确标出了错误集号的条目，直接视为弱匹配，尽量让它们在过滤阈值下消失
+        if explicit_episodes and episode not in explicit_episodes and exact_episode_match is False:
+            score -= 0.25
 
         if has_pack and not exact_episode_match:
             score -= 0.28
