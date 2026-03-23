@@ -548,13 +548,19 @@ class BaseSubtitleSource(ABC):
             "zh", "zho", "chi", "chs", "cht", "chs&eng",
             "中文", "中字", "中英", "双语", "简体", "繁体", "国配",
         )
+        simplified_markers = ("简体", "简中", "chs", "sc", "gb", "gbk")
+        traditional_markers = ("繁体", "繁中", "cht", "tc", "big5")
         foreign_only_markers = ("eng", "english", "英文", "英语", "jpn", "japanese", "日语", "korean", "韩语")
 
         language_score = 0
         if any(marker in stem for marker in chinese_markers):
             language_score += 80
+        if any(marker in stem for marker in simplified_markers):
+            language_score += 40
+        if any(marker in stem for marker in traditional_markers):
+            language_score -= 10
         if "双语" in stem or "中英" in stem:
-            language_score += 20
+            language_score += 15
         if any(marker in stem for marker in foreign_only_markers) and not any(marker in stem for marker in chinese_markers):
             language_score -= 40
 
@@ -601,22 +607,24 @@ class BaseSubtitleSource(ABC):
                     return await self._save_archive_member(archive, member_name, save_path)
 
             if detected_extension == ".7z":
+                import shutil
+                import tempfile
                 import py7zr
 
                 with py7zr.SevenZipFile(io.BytesIO(content), mode="r") as archive:
                     member_name = self._pick_archive_member(archive.getnames())
                     if not member_name:
                         return None
-                    extracted = archive.read([member_name])
-                    member_data = extracted.get(member_name)
-                    if member_data is None:
-                        return None
-                    member_bytes = member_data.read() if hasattr(member_data, "read") else member_data
-                    extension = os.path.splitext(member_name)[1] or ".srt"
-                    target_path = self._resolve_save_path(save_path, extension)
-                    async with aiofiles.open(target_path, "wb") as file_obj:
-                        await file_obj.write(member_bytes)
-                    return target_path
+                    with tempfile.TemporaryDirectory(prefix="subtitle-manager-7z-") as tmp_dir:
+                        archive.extract(path=tmp_dir, targets=[member_name])
+                        extracted_path = os.path.join(tmp_dir, member_name)
+                        if not os.path.exists(extracted_path):
+                            return None
+                        extension = os.path.splitext(member_name)[1] or ".srt"
+                        target_path = self._resolve_save_path(save_path, extension)
+                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                        shutil.move(extracted_path, target_path)
+                        return target_path
 
             target_path = self._resolve_save_path(save_path, detected_extension)
             async with aiofiles.open(target_path, "wb") as file_obj:
