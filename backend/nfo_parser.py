@@ -270,10 +270,16 @@ class NFOParser:
 
                 if nfo_info.get('imdbid') or nfo_info.get('imdb_id'):
                     info['imdb_id'] = nfo_info.get('imdbid') or nfo_info.get('imdb_id')
-                if nfo_info.get('originaltitle'):
-                    info['original_title'] = nfo_info['originaltitle']
-                if nfo_info.get('search_names'):
-                    info['search_names'] = nfo_info['search_names']
+
+                # 对于 TV 剧集，不使用 episode-level NFO 的 originaltitle 和 search_names
+                # 因为这些可能包含错误的翻译（如开拓者 instead of 辐射）
+                # 搜索词应该来自 tvshow.nfo 的标题（通过 TMDB 查询后更新）
+                # 或者直接来自文件名
+                if not is_tv_episode:
+                    if nfo_info.get('originaltitle'):
+                        info['original_title'] = nfo_info['originaltitle']
+                    if nfo_info.get('search_names'):
+                        info['search_names'] = nfo_info['search_names']
 
                 logger.info(f"成功加载 NFO 信息: {video_path}, TMDB ID: {info.get('tmdb_id')}")
 
