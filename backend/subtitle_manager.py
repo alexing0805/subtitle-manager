@@ -667,9 +667,20 @@ class SubtitleManager:
 
         if video_info.get('season') and video_info.get('episode'):
             before_filter = len(sorted_results)
-            sorted_results = [item for item in sorted_results if item.score >= 0.25]
+            sorted_results = [item for item in sorted_results if item.score >= 0.35]
             if before_filter != len(sorted_results):
                 logger.info(f"TV episodic rerank filter removed {before_filter - len(sorted_results)} weak subtitle matches")
+
+        if video_info.get('season') and video_info.get('episode') and sorted_results:
+            target_token = f"s{int(video_info['season']):02d}e{int(video_info['episode']):02d}"
+            exact_results = [
+                item for item in sorted_results
+                if target_token in normalize_release_text((item.title or item.filename or '')).replace(' ', '')
+            ]
+            if exact_results:
+                fallback_results = [item for item in sorted_results if item not in exact_results][:5]
+                sorted_results = exact_results + fallback_results
+                logger.info(f"TV episodic exact-match prioritization kept {len(exact_results)} exact candidates for {target_token}")
 
         if sorted_results:
             top_preview = ", ".join(

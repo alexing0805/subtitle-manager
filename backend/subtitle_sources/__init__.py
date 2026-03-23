@@ -431,22 +431,26 @@ def score_release_title(
         has_episode_marker = exact_episode_match or bool(explicit_episodes)
 
         if exact_episode_match:
-            score += 0.22
+            score += 0.28
         elif explicit_episodes:
-            score -= 0.18
+            score -= 0.26
         else:
-            score -= 0.12
+            score -= 0.16
 
         if explicit_seasons and season not in explicit_seasons:
-            score -= 0.28
+            score -= 0.38
         elif explicit_seasons:
-            score += 0.08
+            score += 0.10
 
         if explicit_episodes and episode not in explicit_episodes:
-            score -= 0.22
+            score -= 0.34
+
+        # 如果候选明确写了其它集号/季号，就进一步强力降权，避免 S02E06/S01E01 混入前排
+        if explicit_seasons and explicit_episodes and (season not in explicit_seasons or episode not in explicit_episodes):
+            score -= 0.20
 
         if has_pack and not exact_episode_match:
-            score -= 0.16
+            score -= 0.28
 
         if re.search(r"\bsp\b|\bspecial\b|\bova\b|\boad\b", candidate_title, re.IGNORECASE):
             score -= 0.18
