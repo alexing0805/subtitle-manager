@@ -235,6 +235,7 @@ class NFOParser:
         # 因为 episode-level NFO 可能包含旧的/错误的 TMDB ID
         # 注意：只有当 series-level NFO 有有效的 tmdbid 时才使用
         series_tmdb_id = None
+        series_info_data = None  # 保存 series NFO 解析结果，避免重复解析
         if is_tv_episode:
             video_dir = Path(video_path).parent
             series_nfo_paths = [
@@ -250,6 +251,7 @@ class NFOParser:
                         series_tmdbid = str(series_info['tmdbid']).strip()
                         if series_tmdbid.isdigit() and len(series_tmdbid) >= 6:
                             series_tmdb_id = series_tmdbid
+                            series_info_data = series_info  # 保存备用
                             logger.info(f"从 series-level NFO 获取 TMDB ID: {series_nfo}, TMDB ID: {series_tmdb_id}")
                             break
 
@@ -280,6 +282,14 @@ class NFOParser:
                         info['original_title'] = nfo_info['originaltitle']
                     if nfo_info.get('search_names'):
                         info['search_names'] = nfo_info['search_names']
+
+                # 重要：对于 TV 剧集，覆盖 episode NFO 中的 originaltitle/title
+                # 防止 build_title_aliases 从 info['nfo'] 读到错误的剧集名（如开拓者）
+                if is_tv_episode and series_info_data:
+                    if series_info_data.get('title'):
+                        info['nfo']['title'] = series_info_data['title']
+                    if series_info_data.get('originaltitle'):
+                        info['nfo']['originaltitle'] = series_info_data['originaltitle']
 
                 logger.info(f"成功加载 NFO 信息: {video_path}, TMDB ID: {info.get('tmdb_id')}")
 
