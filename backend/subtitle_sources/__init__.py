@@ -577,14 +577,13 @@ class BaseSubtitleSource(ABC):
             return None
 
         def _priority_bucket(name: str) -> int:
-            normalized = name.replace("\\", "/").split("/")[-1].lower()
-            simplified_markers = ("简中", "简体", "chs", ".sc.", " gb", "gbk")
-            traditional_markers = ("繁中", "繁體", "繁体", "cht", ".tc.", "big5")
+            raw_name = name.replace("\\", "/").split("/")[-1]
+            normalized = raw_name.lower()
             bilingual_markers = ("双语", "中英")
 
-            has_simplified = any(marker in normalized for marker in simplified_markers)
-            has_traditional = any(marker in normalized for marker in traditional_markers)
-            has_bilingual = any(marker in normalized for marker in bilingual_markers)
+            has_simplified = ("简" in raw_name) or ("chs" in normalized)
+            has_traditional = ("繁" in raw_name) or ("cht" in normalized)
+            has_bilingual = any(marker in raw_name for marker in bilingual_markers)
 
             if has_simplified and has_bilingual:
                 return 4
