@@ -19,7 +19,7 @@ from collections import defaultdict
 
 from backend.subtitle_manager import SubtitleManager
 from backend.config import Config, reload_settings, settings
-from backend.tmdb_api import tmdb_api, init_tmdb_api
+import backend.tmdb_api as tmdb_module
 from backend.nastool_webhook import NASToolWebhookHandler, NASToolWebhookData
 
 # 配置日志 - 脱敏敏感信息
@@ -151,7 +151,7 @@ async def startup_event():
     # 重新加载配置（从备份恢复）
     new_settings = reload_settings()
     # 使用新配置重新初始化 TMDB API
-    init_tmdb_api(new_settings.TMDB_API_KEY)
+    tmdb_module.init_tmdb_api(new_settings.TMDB_API_KEY)
     logger.info("应用启动完成，配置已加载")
 
 
@@ -916,7 +916,7 @@ async def test_tmdb_api(request: TMDBTestRequest):
     """测试 TMDB API 密钥是否有效"""
     try:
         # 临时初始化 TMDB API
-        temp_api = init_tmdb_api(request.api_key)
+        temp_api = tmdb_module.init_tmdb_api(request.api_key)
 
         # 测试搜索一个已知电影
         test_result = await temp_api.search_movie("The Matrix", 1999)

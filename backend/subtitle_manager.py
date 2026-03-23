@@ -17,14 +17,14 @@ import aiohttp
 import chardet
 
 from backend.config import settings, Config, reload_settings
-from backend.tmdb_api import tmdb_api, init_tmdb_api
+import backend.tmdb_api as tmdb_module
 
 # 创建全局配置实例
 config = Config()
 
 # 初始化 TMDB API - 使用重新加载后的配置
 fresh_settings = reload_settings()
-init_tmdb_api(fresh_settings.TMDB_API_KEY)
+tmdb_module.init_tmdb_api(fresh_settings.TMDB_API_KEY)
 
 from backend.utils import (
     get_video_files, has_chinese_subtitle, extract_video_info,
@@ -313,13 +313,13 @@ class SubtitleManager:
         # 注意：video_info['series_tmdb_id'] 是从 series-level NFO 获取的正确 TMDB ID
         # 如果存在，优先使用它来查询 TMDB（因为 episode-level NFO 的 ID 可能是错误的）
         query_tmdb_id = video_info.get('series_tmdb_id') or video_info.get('tmdb_id')
-        logger.info(f"[DEBUG] query_tmdb_id={query_tmdb_id}, series_tmdb_id={video_info.get('series_tmdb_id')}, tmdb_id={video_info.get('tmdb_id')}, TMDB_API_KEY configured={bool(settings.TMDB_API_KEY and tmdb_api.api_key)}")
-        if query_tmdb_id and settings.TMDB_API_KEY and tmdb_api.api_key:
+        logger.info(f"[DEBUG] query_tmdb_id={query_tmdb_id}, series_tmdb_id={video_info.get('series_tmdb_id')}, tmdb_id={video_info.get('tmdb_id')}, TMDB_API_KEY configured={bool(settings.TMDB_API_KEY and tmdb_module.tmdb_api.api_key)}")
+        if query_tmdb_id and settings.TMDB_API_KEY and tmdb_module.tmdb_api.api_key:
             try:
                 tmdb_info = await (
-                    tmdb_api.get_movie_details(query_tmdb_id)
+                    tmdb_module.tmdb_api.get_movie_details(query_tmdb_id)
                     if video_info.get('is_movie')
-                    else tmdb_api.get_tv_details(query_tmdb_id)
+                    else tmdb_module.tmdb_api.get_tv_details(query_tmdb_id)
                 )
                 if tmdb_info:
                     logger.info(f"通过 TMDB ID {query_tmdb_id} 获取信息成功: {tmdb_info.get('title')}")
@@ -336,15 +336,15 @@ class SubtitleManager:
                 logger.warning(f"通过 TMDB ID 获取信息失败: {e}")
 
         # 如果没有 NFO 信息，尝试使用 TMDB API 搜索
-        elif settings.TMDB_API_KEY and tmdb_api.api_key:
+        elif settings.TMDB_API_KEY and tmdb_module.tmdb_api.api_key:
             try:
                 if video_info.get('is_movie'):
-                    tmdb_info = await tmdb_api.search_movie(
+                    tmdb_info = await tmdb_module.tmdb_api.search_movie(
                         video_info.get('title', ''),
                         video_info.get('year')
                     )
                 else:
-                    tmdb_info = await tmdb_api.search_tv(
+                    tmdb_info = await tmdb_module.tmdb_api.search_tv(
                         video_info.get('title', ''),
                         video_info.get('year')
                     )
@@ -664,6 +664,12 @@ class SubtitleManager:
             key=lambda item: item.score,
             reverse=True,
         )
+
+        if video_info.get('season') and video_info.get('episode'):
+            before_filter = len(sorted_results)
+            sorted_results = [item for item in sorted_results if item.score >= 0.25]
+            if before_filter != len(sorted_results):
+                logger.info(f"TV episodic rerank filter removed {before_filter - len(sorted_results)} weak subtitle matches")
 
         if sorted_results:
             top_preview = ", ".join(
@@ -1828,7 +1834,7 @@ class SubtitleManager:
             settings.NASTOOL_PATH_MAPPINGS = new_settings['NASTOOL_PATH_MAPPINGS'] or None
 
             # 重新初始化 TMDB API
-            init_tmdb_api(settings.TMDB_API_KEY)
+            tmdb_module.init_tmdb_api(settings.TMDB_API_KEY)
             
             logger.info("设置已更新并保存到 .env 文件")
             
@@ -1837,7 +1843,7 @@ class SubtitleManager:
             new_settings = reload_settings()
             
             # 使用新配置重新初始化 TMDB API
-            init_tmdb_api(new_settings.TMDB_API_KEY)
+            tmdb_module.init_tmdb_api(new_settings.TMDB_API_KEY)
             
             return {"success": True, "message": "设置已保存"}
         except Exception as e:
