@@ -116,7 +116,7 @@ class CircuitBreakerOpen(Exception):
 # ==================== 常量 ====================
 
 SEARCH_TERM_LIMIT = 10
-DOWNLOADABLE_SUBTITLE_EXTENSIONS = (".srt", ".ass", ".ssa", ".vtt", ".smi", ".sami", ".sub", ".idx", ".sup")
+DOWNLOADABLE_SUBTITLE_EXTENSIONS = (".srt", ".ass", ".ssa", ".vtt", ".smi", ".sami", ".sub", ".idx", ".sup", ".7z")
 COMMON_RELEASE_TAGS = (
     "2160p", "1080p", "720p", "480p", "4k", "8k",
     "web", "webdl", "web-dl", "webrip", "bluray", "bdrip", "brrip", "hdrip", "hdtv",
@@ -511,6 +511,8 @@ class BaseSubtitleSource(ABC):
             if normalized in DOWNLOADABLE_SUBTITLE_EXTENSIONS:
                 return normalized
 
+        if content[:6] == b"7z\xbc\xaf'\x1c":
+            return ".7z"
         if content[:2] == b"PK":
             return ".zip"
         if content[:4] == b"Rar!":
@@ -597,6 +599,24 @@ class BaseSubtitleSource(ABC):
                     if not member_name:
                         return None
                     return await self._save_archive_member(archive, member_name, save_path)
+
+            if detected_extension == ".7z":
+                import py7zr
+
+                with py7zr.SevenZipFile(io.BytesIO(content), mode="r") as archive:
+                    member_name = self._pick_archive_member(archive.getnames())
+                    if not member_name:
+                        return None
+                    extracted = archive.read([member_name])
+                    member_data = extracted.get(member_name)
+                    if member_data is None:
+                        return None
+                    member_bytes = member_data.read() if hasattr(member_data, "read") else member_data
+                    extension = os.path.splitext(member_name)[1] or ".srt"
+                    target_path = self._resolve_save_path(save_path, extension)
+                    async with aiofiles.open(target_path, "wb") as file_obj:
+                        await file_obj.write(member_bytes)
+                    return target_path
 
             target_path = self._resolve_save_path(save_path, detected_extension)
             async with aiofiles.open(target_path, "wb") as file_obj:

@@ -393,8 +393,6 @@ class SubHDSource(BaseSubtitleSource):
             if ext in [".srt", ".ass", ".ssa", ".vtt", ".smi", ".sami", ".sub", ".idx", ".sup", ".zip", ".rar", ".7z"]:
                 return ext
 
-        if content[:6] == b"7z\xbc\xaf'\x1c":
-            return ".7z"
         if content[:2] == b"PK":
             return ".zip"
         if content[:4] == b"Rar!":
@@ -478,35 +476,6 @@ class SubHDSource(BaseSubtitleSource):
                         return await self._save_archive_member(archive, member_name, save_path)
                 except Exception as exc:
                     logger.error(f"Failed to extract ZIP subtitle: {exc}")
-                    return None
-
-            if detected_extension == ".7z":
-                import py7zr
-
-                try:
-                    with py7zr.SevenZipFile(io.BytesIO(content), mode="r") as archive:
-                        names = archive.getnames()
-                        member_name = self._pick_archive_member(names)
-                        if not member_name:
-                            logger.warning("7z archive does not contain a supported subtitle file")
-                            return None
-                        extracted = archive.read([member_name])
-                        member_data = extracted.get(member_name)
-                        if member_data is None:
-                            logger.warning(f"7z archive member missing after extraction: {member_name}")
-                            return None
-                        if hasattr(member_data, "read"):
-                            member_bytes = member_data.read()
-                        else:
-                            member_bytes = member_data
-                        extension = os.path.splitext(member_name)[1] or ".srt"
-                        target_path = self._resolve_save_path(save_path, extension)
-                        async with aiofiles.open(target_path, "wb") as file_obj:
-                            await file_obj.write(member_bytes)
-                        logger.info(f"Subtitle extracted from 7z: {target_path}")
-                        return target_path
-                except Exception as exc:
-                    logger.error(f"Failed to extract 7z subtitle: {exc}")
                     return None
 
             if detected_extension == ".rar":

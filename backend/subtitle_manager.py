@@ -1130,6 +1130,34 @@ class SubtitleManager:
             "warning": f"当前字幕格式 {suffix} 无法转换为 UTF-8 SRT，已按 Plex 命名保留原格式",
         }
 
+    def _extract_7z_subtitle(self, archive_path: str) -> str | None:
+        """Extract the best subtitle member from a local 7z archive."""
+        try:
+            import py7zr
+            from backend.subtitle_sources import SubHDSource
+
+            helper = SubHDSource()
+            with py7zr.SevenZipFile(archive_path, mode="r") as archive:
+                member_name = helper._pick_archive_member(archive.getnames())
+                if not member_name:
+                    logger.warning("7z archive does not contain a supported subtitle file")
+                    return None
+                extracted = archive.read([member_name])
+                member_data = extracted.get(member_name)
+                if member_data is None:
+                    logger.warning(f"7z archive member missing after extraction: {member_name}")
+                    return None
+                member_bytes = member_data.read() if hasattr(member_data, "read") else member_data
+                extension = os.path.splitext(member_name)[1] or ".srt"
+                target_path = os.path.splitext(archive_path)[0] + extension
+                with open(target_path, "wb") as file_obj:
+                    file_obj.write(member_bytes)
+                logger.info(f"Subtitle extracted from local 7z: {target_path}")
+                return target_path
+        except Exception as exc:
+            logger.error(f"Failed to extract local 7z subtitle: {exc}")
+            return None
+
     def _normalize_downloaded_subtitle(self, video_path: str, subtitle_path: str) -> Dict[str, Any]:
         """Standardize downloaded subtitles for Plex consumption."""
         suffix = os.path.splitext(subtitle_path)[1].lower()
@@ -1138,6 +1166,19 @@ class SubtitleManager:
             lang_code="zh-cn",
             plex_format=settings.PLEX_NAMING_FORMAT,
         )
+
+        if suffix == ".7z":
+            extracted_path = self._extract_7z_subtitle(subtitle_path)
+            if not extracted_path:
+                return {
+                    "path": subtitle_path,
+                    "converted": False,
+                    "warning": "7z 字幕包解压失败，已保留原文件",
+                }
+            if os.path.exists(subtitle_path) and os.path.normcase(extracted_path) != os.path.normcase(subtitle_path):
+                os.remove(subtitle_path)
+            subtitle_path = extracted_path
+            suffix = os.path.splitext(subtitle_path)[1].lower()
 
         if suffix in {".sup", ".idx", ".sub"}:
             return self._normalize_non_text_subtitle(video_path, subtitle_path)
