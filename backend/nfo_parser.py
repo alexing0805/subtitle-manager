@@ -179,8 +179,9 @@ class NFOParser:
         查找视频文件对应的 NFO 文件
 
         电影：优先使用同目录下的 movie.nfo 或 {name}.nfo
-        剧集：优先使用 series-level NFO（season.nfo / tvshow.nfo），
-              因为 episode-level NFO 通常是旧数据，series-level NFO 才是刮削工具的主记录
+        剧集：按以下顺序查找
+              1. episode-level NFO（同目录同名.nfo）
+              2. series-level NFO（season.nfo / tvshow.nfo）
         """
         video_dir = Path(video_path).parent
         video_name = Path(video_path).stem
@@ -189,25 +190,16 @@ class NFOParser:
         # 判断是否为剧集文件（包含 SxxExx 模式）
         is_tv_episode = bool(re.search(r'[Ss]\d{1,2}[Ee]\d{1,2}', video_name))
 
+        # 剧集：先查 episode-level，再查 series-level
+        # 电影：直接用 episode-level（包含movie.nfo）
+        candidate_groups = [
+            [video_dir / f"{video_name}.nfo", video_dir / "movie.nfo"],
+        ]
         if is_tv_episode:
-            # 剧集：优先使用 series-level NFO
-            # 查找顺序：season.nfo -> tvshow.nfo -> episode-level NFO
-            candidate_groups = [
-                # series-level NFO（优先）
-                [video_dir / "season.nfo", video_dir / "tvshow.nfo"],
-                [video_dir.parent / "season.nfo", video_dir.parent / "tvshow.nfo"],
-                [video_dir.parent.parent / "tvshow.nfo"],
-                # episode-level NFO（兜底）
-                [video_dir / f"{video_name}.nfo"],
-            ]
-        else:
-            # 电影：优先使用 movie.nfo 或 {name}.nfo
-            candidate_groups = [
-                [video_dir / f"{video_name}.nfo", video_dir / "movie.nfo"],
-                [video_dir / "season.nfo", video_dir / "tvshow.nfo"],
-                [video_dir.parent / "season.nfo", video_dir.parent / "tvshow.nfo"],
-                [video_dir.parent.parent / "tvshow.nfo"],
-            ]
+            # 剧集额外查找 series-level NFO
+            candidate_groups.append([video_dir / "season.nfo", video_dir / "tvshow.nfo"])
+            candidate_groups.append([video_dir.parent / "season.nfo", video_dir.parent / "tvshow.nfo"])
+            candidate_groups.append([video_dir.parent.parent / "tvshow.nfo"])
 
         for candidates in candidate_groups:
             for candidate in candidates:
@@ -236,7 +228,29 @@ class NFOParser:
         # 获取基础视频信息
         info = extract_video_info(video_path)
 
-        # 查找并解析 NFO 文件
+        # 判断是否为剧集文件
+        is_tv_episode = bool(re.search(r'[Ss]\d{1,2}[Ee]\d{1,2}', os.path.basename(video_path)))
+
+        # 电视剧：优先从 series-level NFO（tvshow.nfo）获取 TMDB ID
+        # 因为 episode-level NFO 可能包含旧的/错误的 TMDB ID
+        tmdb_id = None
+        if is_tv_episode:
+            # 查找 series-level NFO
+            video_dir = Path(video_path).parent
+            series_nfo_paths = [
+                video_dir / "tvshow.nfo",
+                video_dir.parent / "tvshow.nfo",
+                video_dir.parent.parent / "tvshow.nfo",
+            ]
+            for series_nfo in series_nfo_paths:
+                if series_nfo.exists():
+                    series_info = NFOParser.parse_movie_nfo(str(series_nfo))
+                    if series_info and series_info.get('tmdbid'):
+                        tmdb_id = series_info['tmdbid']
+                        logger.info(f"从 series-level NFO 获取 TMDB ID: {series_nfo}, TMDB ID: {tmdb_id}")
+                        break
+
+        # 查找并解析 episode-level NFO（用于其他信息）
         nfo_path = NFOParser.find_nfo_file(video_path)
         if nfo_path:
             nfo_info = NFOParser.parse_movie_nfo(nfo_path)
@@ -245,9 +259,13 @@ class NFOParser:
                 info['nfo'] = nfo_info
                 info['nfo_path'] = nfo_path
 
-                # 使用 NFO 中的信息增强搜索
-                if nfo_info.get('tmdbid'):
+                # TMDB ID：优先使用 series-level NFO 的值（如果获取到了）
+                # 否则使用 episode-level NFO 的值
+                if tmdb_id:
+                    info['tmdb_id'] = tmdb_id
+                elif nfo_info.get('tmdbid'):
                     info['tmdb_id'] = nfo_info['tmdbid']
+
                 if nfo_info.get('imdbid') or nfo_info.get('imdb_id'):
                     info['imdb_id'] = nfo_info.get('imdbid') or nfo_info.get('imdb_id')
                 if nfo_info.get('originaltitle'):
@@ -255,6 +273,6 @@ class NFOParser:
                 if nfo_info.get('search_names'):
                     info['search_names'] = nfo_info['search_names']
 
-                logger.info(f"成功加载 NFO 信息: {video_path}, TMDB ID: {nfo_info.get('tmdbid')}")
+                logger.info(f"成功加载 NFO 信息: {video_path}, TMDB ID: {info.get('tmdb_id')}")
 
         return info
