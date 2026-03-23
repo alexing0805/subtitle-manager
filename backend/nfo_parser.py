@@ -285,11 +285,34 @@ class NFOParser:
 
                 # 重要：对于 TV 剧集，覆盖 episode NFO 中的 originaltitle/title
                 # 防止 build_title_aliases 从 info['nfo'] 读到错误的剧集名（如开拓者）
-                if is_tv_episode and series_info_data:
-                    if series_info_data.get('title'):
-                        info['nfo']['title'] = series_info_data['title']
-                    if series_info_data.get('originaltitle'):
-                        info['nfo']['originaltitle'] = series_info_data['originaltitle']
+                # 策略：优先从 series NFO 获取，其次从目录路径提取
+                series_title_from_path = None
+                if is_tv_episode:
+                    # 从目录路径提取系列名：/tvshows/.../辐射 Fallout (2024)/Season 2/文件名.mkv
+                    path_parts = Path(video_path).parts
+                    # 找到 tvshows 之后的第一层或第二层目录作为系列目录
+                    try:
+                        tv_idx = path_parts.index('tvshows')
+                        if len(path_parts) > tv_idx + 2:
+                            # tvshows/类型/系列名(年份) 或 tvshows/类型/系列名/Season X
+                            series_dir = path_parts[tv_idx + 2]
+                            # 去掉可能的 Season X 子目录
+                            if series_dir.lower().startswith('season'):
+                                series_dir = path_parts[tv_idx + 1]
+                            # 清理系列名（去掉年份括号）
+                            series_title_from_path = re.sub(r'\s*\(\d{4}\)\s*$', '', series_dir).strip()
+                            logger.info(f"从目录路径提取系列名: {series_title_from_path}")
+                    except (ValueError, IndexError):
+                        pass
+
+                if is_tv_episode and series_title_from_path:
+                    # 用目录路径中的系列名覆盖 NFO 数据
+                    if not info['nfo']:
+                        info['nfo'] = {}
+                    info['nfo']['title'] = series_title_from_path
+                    info['nfo']['originaltitle'] = series_title_from_path
+                    info['nfo']['search_names'] = [series_title_from_path]
+                    logger.info(f"使用目录路径系列名覆盖 NFO 标题: {series_title_from_path}")
 
                 logger.info(f"成功加载 NFO 信息: {video_path}, TMDB ID: {info.get('tmdb_id')}")
 
