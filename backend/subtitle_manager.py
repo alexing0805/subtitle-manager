@@ -506,13 +506,51 @@ class SubtitleManager:
             return None
         if entry["data"] is None or time.time() >= entry["expires_at"]:
             return None
+
+        # 检查 NFO 文件是否有更新（基于 mtime 判断缓存是否失效）
+        cached_nfo_mtimes = entry.get("nfo_mtimes", {})
+        if cached_nfo_mtimes:
+            current_mtimes = self._scan_nfo_mtimes(cache_key)
+            if current_mtimes != cached_nfo_mtimes:
+                logger.info(f"NFO 文件已变化，刷新缓存: {cache_key}")
+                self._invalidate_library_cache(cache_key)
+                return None
+
         logger.debug(f"Using cached library view: {cache_key}")
         return entry["data"]
 
+    def _scan_nfo_mtimes(self, cache_key: str) -> Dict[str, float]:
+        """
+        扫描指定媒体类型目录下的所有 NFO 文件及其 mtime
+        用于检测文件是否发生变化
+        """
+        nfo_mtimes = {}
+        dir_map = {
+            "movies": config.MOVIE_DIR,
+            "tvshows": config.TV_DIR,
+            "anime": config.ANIME_DIR,
+        }
+        base_dir = dir_map.get(cache_key)
+        if not base_dir or not os.path.exists(base_dir):
+            return nfo_mtimes
+
+        for root, _, files in os.walk(base_dir):
+            for fname in files:
+                if fname.lower().endswith(('.nfo', '.NFO')):
+                    fpath = os.path.join(root, fname)
+                    try:
+                        nfo_mtimes[fpath] = os.path.getmtime(fpath)
+                    except OSError:
+                        pass
+        return nfo_mtimes
+
     def _set_cached_library(self, cache_key: str, data: list):
+        # 同时记录扫描时的 NFO 文件 mtimes
+        nfo_mtimes = self._scan_nfo_mtimes(cache_key)
         self._library_cache[cache_key] = {
             "expires_at": time.time() + self._library_cache_ttl,
             "data": data,
+            "nfo_mtimes": nfo_mtimes,
         }
 
     def _invalidate_library_cache(self, *cache_keys: str):
