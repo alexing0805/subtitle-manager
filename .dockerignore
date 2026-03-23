@@ -1,41 +1,46 @@
+# Git
 .git
-.venv
-__pycache__/
+.gitignore
+.github
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Python
+__pycache__
+*.py[cod]
 *.pyc
-*.pyo
-*.pyd
+.pytest_cache
+.venv
+venv
+*.egg-info
+dist
+build
 
-.env
-.env.local
-.env.*.local
+# Node
+node_modules
+web/node_modules
 
-logs/
-data/
-web/dist/
+# Tests
+tests
+*.test.py
 
-node_modules/
+# Docs
+*.md
+!README.md
 
-*.mkv
-*.mp4
-*.avi
-*.mov
-*.wmv
-*.flv
-*.m4v
-*.srt
-*.ass
-*.ssa
-*.vtt
-*.sub
-*.idx
-*.sup
-*.jpg
-*.jpeg
-*.png
+# OS
+.DS_Store
+Thumbs.db
 
-subhd_screenshots/
-assets/
-test/
+# Logs
+*.log
+logs
 
-/docs/
-/scripts/
+# Data (不应该打包进镜像)
+data
+*.json
+!requirements.txt

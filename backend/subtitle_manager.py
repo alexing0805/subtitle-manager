@@ -37,21 +37,84 @@ from backend.nfo_parser import NFOParser
 
 class SubtitleManager:
     """字幕管理器"""
-    
+
+    # 任务队列持久化文件
+    TASK_QUEUE_FILE = "/app/data/task_queue.json"
+
     def __init__(self):
         self.processed_files: Set[str] = set()
         self.failed_files: dict = {}  # 记录失败次数
         self.history_file = "/app/data/history.json"
         self._auto_request_lock = asyncio.Lock()
         self._next_auto_request_at = 0.0
-        self._library_cache_ttl = 180.0
+        # 从配置加载库缓存 TTL（默认 10 分钟）
+        self._library_cache_ttl: float = float(getattr(settings, 'LIBRARY_CACHE_TTL', 600))
         self._library_cache: Dict[str, Dict[str, Any]] = {
             "movies": {"expires_at": 0.0, "data": None},
             "tvshows": {"expires_at": 0.0, "data": None},
             "anime": {"expires_at": 0.0, "data": None},
         }
+        # 任务队列状态
+        self._task_queue: List[Dict[str, Any]] = []
+        self._current_scan_task: Optional[asyncio.Task] = None
+        self._scan_progress: Dict[str, Any] = {
+            "isScanning": False,
+            "progress": 0,
+            "currentFile": "",
+            "totalFiles": 0,
+            "processedFiles": 0,
+        }
+        # 字幕格式加分配置
+        self._subtitle_format_bonus_config: Dict[str, float] = self._parse_subtitle_format_bonus()
         self.load_history()
-    
+        self._load_task_queue()
+
+    def _parse_subtitle_format_bonus(self) -> Dict[str, float]:
+        """
+        解析字幕格式加分配置
+        配置格式: "srt=0.08,ass=0.06,vtt=0.03,sup=-0.16"
+        """
+        config_str = getattr(settings, 'SUBTITLE_FORMAT_BONUS', 'srt=0.08,ass=0.06,ssa=0.06,vtt=0.03,smi=0.03,sami=0.03,sup=-0.16,idx=-0.16,sub=-0.16')
+        result = {}
+        try:
+            for item in config_str.split(','):
+                item = item.strip()
+                if '=' in item:
+                    fmt, bonus = item.split('=', 1)
+                    result[fmt.strip().lower()] = float(bonus.strip())
+        except Exception as e:
+            logger.warning(f"解析字幕格式加分配置失败，使用默认值: {e}")
+            result = {"srt": 0.08, "ass": 0.06, "ssa": 0.06, "vtt": 0.03, "smi": 0.03, "sami": 0.03, "sup": -0.16, "idx": -0.16, "sub": -0.16}
+        return result
+
+    def _generate_task_id(self) -> str:
+        """生成唯一任务 ID"""
+        return hashlib.md5(f"{time.time()}-{random.random()}".encode()).hexdigest()[:12]
+
+    def _load_task_queue(self):
+        """从文件加载任务队列"""
+        try:
+            if os.path.exists(self.TASK_QUEUE_FILE):
+                with open(self.TASK_QUEUE_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self._task_queue = data.get('tasks', [])
+                    logger.info(f"已加载任务队列: {len(self._task_queue)} 个待处理任务")
+        except Exception as e:
+            logger.error(f"加载任务队列失败: {e}")
+            self._task_queue = []
+
+    def _save_task_queue(self):
+        """保存任务队列到文件"""
+        try:
+            os.makedirs(os.path.dirname(self.TASK_QUEUE_FILE), exist_ok=True)
+            with open(self.TASK_QUEUE_FILE, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'tasks': self._task_queue,
+                    'last_update': datetime.now().isoformat()
+                }, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"保存任务队列失败: {e}")
+
     def load_history(self):
         """加载处理历史"""
         try:
@@ -284,7 +347,7 @@ class SubtitleManager:
             except Exception as e:
                 logger.warning(f"TMDB 搜索失败: {e}")
 
-        # 并发搜索所有字幕源，每个源最多30秒（SubHD 需要更长时间）
+        # 并发搜索所有字幕源，每个源有独立的超时和熔断器
         tasks = []
         source_timeouts = {
             'subhd': 30,
@@ -292,26 +355,67 @@ class SubtitleManager:
             'opensubtitles': 15,
             'shooter': 10,
         }
+
+        # 导入熔断器
+        from backend.subtitle_sources import get_circuit_breaker, CircuitBreakerOpen
+
         for source_name in subtitle_sources:
             source = get_source(source_name)
-            if source:
-                logger.info(f"使用字幕源: {source_name}")
-                # 包装搜索函数，添加超时 - SubHD 需要更长时间
-                timeout = source_timeouts.get(source_name.lower(), 15)
-                task = asyncio.wait_for(source.search(video_info), timeout=timeout)
-                tasks.append((source_name, task))
-            else:
+            if not source:
                 logger.warning(f"字幕源未找到: {source_name}")
+                continue
+
+            # 检查熔断器状态
+            breaker = get_circuit_breaker(source_name)
+            if breaker.is_open:
+                logger.info(f"字幕源 {source_name} 熔断器已断开，跳过搜索")
+                continue
+
+            logger.info(f"使用字幕源: {source_name} (熔断器状态: {breaker._state})")
+
+            async def search_with_circuit_break(source_name: str, source_obj):
+                """带熔断器保护的搜索"""
+                breaker = get_circuit_breaker(source_name)
+                try:
+                    if not await breaker.can_proceed():
+                        raise CircuitBreakerOpen(f"字幕源 {source_name} 熔断器已断开")
+                    result = await source_obj.search(video_info)
+                    breaker.record_success()
+                    return result
+                except CircuitBreakerOpen:
+                    raise
+                except asyncio.TimeoutError:
+                    breaker.record_failure()
+                    raise
+                except Exception as e:
+                    breaker.record_failure()
+                    raise
+
+            # 包装搜索函数，添加超时
+            timeout = source_timeouts.get(source_name.lower(), 15)
+            try:
+                task = asyncio.create_task(
+                    asyncio.wait_for(
+                        search_with_circuit_break(source_name, source),
+                        timeout=timeout
+                    )
+                )
+                tasks.append((source_name, task))
+            except Exception as e:
+                logger.error(f"创建字幕源 {source_name} 搜索任务失败: {e}")
 
         if tasks:
             results = await asyncio.gather(*[t[1] for t in tasks], return_exceptions=True)
             for (source_name, _), result in zip(tasks, results):
                 if isinstance(result, list):
                     all_results.extend(result)
+                    logger.info(f"字幕源 {source_name} 返回 {len(result)} 个结果")
                 elif isinstance(result, asyncio.TimeoutError):
                     logger.warning(f"字幕源 {source_name} 搜索超时")
+                elif isinstance(result, CircuitBreakerOpen):
+                    logger.warning(f"字幕源 {source_name} 熔断器已断开: {result}")
                 elif isinstance(result, Exception):
-                    logger.error(f"搜索字幕源异常: {result}")
+                    logger.error(f"搜索字幕源 {source_name} 异常: {result}")
 
         # 过滤非中文字幕
         chinese_results = [
@@ -462,16 +566,10 @@ class SubtitleManager:
                 return
 
     def _subtitle_format_bonus(self, result: SubtitleResult) -> float:
+        """根据字幕格式返回匹配加分，使用可配置的格式权重"""
         format_name = (getattr(result, "file_format", "") or "").lower().lstrip(".")
-        if format_name in {"srt"}:
-            return 0.08
-        if format_name in {"ass", "ssa"}:
-            return 0.06
-        if format_name in {"vtt", "smi", "sami"}:
-            return 0.03
-        if format_name in {"sup", "idx", "sub"}:
-            return -0.16
-        return 0.0
+        # 从配置中获取格式加分，默认返回 0.0
+        return self._subtitle_format_bonus_config.get(format_name, 0.0)
 
     def _subtitle_result_key(self, result: SubtitleResult) -> tuple:
         """Build a stable dedupe key for subtitle results."""
@@ -627,19 +725,34 @@ class SubtitleManager:
         return backup_path
 
     def _decode_subtitle_bytes(self, content: bytes) -> str:
-        """Decode subtitle bytes with a best-effort charset detection strategy."""
+        """
+        Decode subtitle bytes with a best-effort charset detection strategy.
+        
+        增强的中文编码检测：
+        1. 先尝试 chardet 检测结果
+        2. 对于中文文件，优先尝试 GB2312/GBK（很多字幕用这个编码但被 chardet 误判为 GB18030）
+        3. 使用 UTF-8 系列兜底
+        """
         detection = chardet.detect(content or b"")
         candidates = []
 
         detected_encoding = detection.get("encoding")
         if detected_encoding:
+            detected_lower = detected_encoding.lower()
+            # chardet 有时会误判，先保存原始检测结果
             candidates.append(detected_encoding)
+            # 如果检测到是中文相关编码，额外添加更具体的编码尝试
+            if detected_lower in ("gb18030", "gb2312", "gbk", "gb_2312", "gb_2312-80"):
+                candidates.insert(0, "gbk")  # GBK 兼容性更好
+                candidates.insert(0, "gb2312")
 
         candidates.extend([
             "utf-8-sig",
+            "utf-8",
             "utf-16",
             "utf-16-le",
             "utf-16-be",
+            "gbk",  # 提前 gbk 尝试
             "gb18030",
             "big5",
             "cp1252",
@@ -653,11 +766,102 @@ class SubtitleManager:
                 continue
             tried.add(normalized)
             try:
-                return content.decode(encoding)
+                decoded = content.decode(encoding)
+                # 验证解码结果是否包含合理的中文字符密度
+                if self._validate_decoded_content(decoded):
+                    return decoded
             except Exception:
                 continue
 
         return content.decode("utf-8", errors="replace")
+
+    def _validate_decoded_content(self, text: str) -> bool:
+        """
+        验证解码后的字幕内容是否有效
+        检查中文字符密度，防止乱码字幕被误认为有效
+        """
+        if not text:
+            return False
+
+        # 提取所有字符
+        chars = list(text)
+        if len(chars) == 0:
+            return False
+
+        # 统计中文字符数量
+        chinese_chars = re.findall(r'[\u4e00-\u9fff\u3400-\u4dbf]', text)
+        chinese_ratio = len(chinese_chars) / len(chars)
+
+        # 统计乱码特征（控制字符、非法 Unicode 代理对等）
+        illegal_sequences = re.findall(r'[\x00-\x08\x0b-\x0c\x0e-\x1f\uDC00-\uDFFF]', text)
+        illegal_ratio = len(illegal_sequences) / len(chars)
+
+        # 验证条件：
+        # 1. 中文字符比例在合理范围（1% - 50%）
+        # 2. 乱码字符比例低于 5%
+        if chinese_ratio > 0.01 and chinese_ratio < 0.50 and illegal_ratio < 0.05:
+            return True
+
+        # 如果没有中文字符，至少确保不是乱码（乱码比例很低）
+        if chinese_ratio <= 0.01 and illegal_ratio < 0.01:
+            return True
+
+        return False
+
+    def _validate_subtitle_quality(self, subtitle_path: str) -> Dict[str, Any]:
+        """
+        验证字幕文件内容质量
+        返回: {"valid": bool, "chinese_ratio": float, "line_count": int, "warnings": list}
+        """
+        warnings = []
+        try:
+            with open(subtitle_path, 'rb') as f:
+                raw_content = f.read()
+
+            text = self._decode_subtitle_bytes(raw_content)
+            lines = [l.strip() for l in text.splitlines() if l.strip()]
+
+            # 统计
+            total_chars = len(text)
+            chinese_chars = re.findall(r'[\u4e00-\u9fff\u3400-\u4dbf]', text)
+            chinese_ratio = len(chinese_chars) / max(total_chars, 1)
+
+            # 检查时间戳格式是否正确
+            timestamp_errors = 0
+            for line in lines:
+                if '-->' in line:
+                    parts = line.split('-->')
+                    if len(parts) == 2:
+                        try:
+                            # 简单验证时间戳格式
+                            start = parts[0].strip()
+                            end = parts[1].strip()
+                            if not re.match(r'\d{1,2}:\d{2}:\d{2}[,\.]\d{1,3}', start):
+                                timestamp_errors += 1
+                        except:
+                            timestamp_errors += 1
+
+            # 生成警告
+            if chinese_ratio < 0.01:
+                warnings.append("字幕中中文字符过少，可能不是正确的中文字幕")
+            if timestamp_errors > len(lines) * 0.3:
+                warnings.append("字幕时间戳格式错误较多")
+            if len(lines) < 10:
+                warnings.append("字幕行数过少，可能不完整")
+
+            return {
+                "valid": len(warnings) == 0,
+                "chinese_ratio": round(chinese_ratio, 4),
+                "line_count": len(lines),
+                "warnings": warnings
+            }
+        except Exception as e:
+            return {
+                "valid": False,
+                "chinese_ratio": 0.0,
+                "line_count": 0,
+                "warnings": [f"无法读取字幕文件: {e}"]
+            }
 
     def _clean_subtitle_text(self, text: str) -> str:
         """Remove formatting markup while keeping human-readable line breaks."""
@@ -1311,36 +1515,94 @@ class SubtitleManager:
         
         return None
     
-    def scan_library(self):
-        """扫描媒体库（供API调用）"""
-        logger.info("开始扫描媒体库...")
+    def scan_library(self, background: bool = False):
+        """
+        扫描媒体库（供API调用）
+
+        Args:
+            background: 是否在后台异步执行，默认 False（同步执行便于 API 返回）
+        """
+        logger.info(f"开始扫描媒体库... (background={background})")
         try:
             self._invalidate_library_cache()
-            # 使用 asyncio 运行异步扫描
-            asyncio.run(self.scan_and_process())
-            logger.info("媒体库扫描完成")
-            return {"success": True, "message": "扫描完成"}
+
+            # 创建扫描任务
+            task_id = self._generate_task_id()
+            scan_task_info = {
+                "id": task_id,
+                "type": "scan",
+                "status": "running",
+                "createdAt": datetime.now().isoformat(),
+                "progress": 0,
+                "message": "扫描中..."
+            }
+            self._task_queue.append(scan_task_info)
+            self._save_task_queue()
+
+            if background:
+                # 后台执行
+                async def run_background_scan():
+                    try:
+                        await self.scan_and_process()
+                        self._update_task_status(task_id, "completed", 100, "扫描完成")
+                    except Exception as e:
+                        logger.error(f"后台扫描失败: {e}")
+                        self._update_task_status(task_id, "failed", 0, f"扫描失败: {e}")
+
+                # 启动后台任务
+                asyncio.create_task(run_background_scan())
+                return {"success": True, "message": "扫描任务已启动", "taskId": task_id}
+            else:
+                # 同步执行
+                asyncio.run(self.scan_and_process())
+                self._update_task_status(task_id, "completed", 100, "扫描完成")
+                logger.info("媒体库扫描完成")
+                return {"success": True, "message": "扫描完成"}
         except Exception as e:
             logger.error(f"扫描媒体库失败: {e}")
             return {"success": False, "message": str(e)}
-    
+
+    def _update_task_status(self, task_id: str, status: str, progress: int, message: str):
+        """更新任务状态"""
+        for task in self._task_queue:
+            if task.get('id') == task_id:
+                task['status'] = status
+                task['progress'] = progress
+                task['message'] = message
+                task['updatedAt'] = datetime.now().isoformat()
+                break
+        self._save_task_queue()
+        # 更新扫描进度
+        self._scan_progress["isScanning"] = (status == "running")
+        self._scan_progress["progress"] = progress
+
     def get_scan_status(self):
         """获取扫描状态"""
         return {
-            "isScanning": False,
-            "progress": 100,
-            "currentFile": "",
-            "totalFiles": 0,
+            "isScanning": self._scan_progress.get("isScanning", False),
+            "progress": self._scan_progress.get("progress", 100),
+            "currentFile": self._scan_progress.get("currentFile", ""),
+            "totalFiles": self._scan_progress.get("totalFiles", 0),
             "processedFiles": len(self.processed_files)
         }
-    
+
     def get_tasks(self):
         """获取任务队列"""
-        return []
-    
+        return self._task_queue[-20:]  # 返回最近20个任务
+
     def cancel_task(self, task_id: str):
         """取消任务"""
-        return {"success": True}
+        for task in self._task_queue:
+            if task.get('id') == task_id:
+                if task.get('status') == 'running':
+                    task['status'] = 'cancelled'
+                    task['message'] = '任务已取消'
+                    task['updatedAt'] = datetime.now().isoformat()
+                    self._save_task_queue()
+                    return {"success": True, "message": "任务已取消"}
+                else:
+                    return {"success": False, "message": "任务不在运行中"}
+        return {"success": False, "message": "任务不存在"}
     
     def get_movie(self, movie_id: int):
         """获取单个电影信息"""
@@ -1661,22 +1923,35 @@ class SubtitleManager:
     def delete_subtitle(self, subtitle_path: str):
         """删除字幕文件"""
         try:
+            # 安全检查 1: 检查文件是否存在
             if not os.path.exists(subtitle_path):
                 return {"success": False, "message": "字幕文件不存在"}
 
-            # 安全检查：确保文件在监控目录内
-            watch_dirs = settings.get_watch_dirs()
+            # 安全检查 2: 路径穿越防护 - 解析真实路径并验证
+            try:
+                real_subtitle_path = str(Path(subtitle_path).resolve())
+                real_watch_dirs = [str(Path(d).resolve()) for d in settings.get_watch_dirs()]
+            except Exception as e:
+                logger.error(f"路径解析失败: {subtitle_path}, 错误: {e}")
+                return {"success": False, "message": "路径格式无效"}
+
+            # 确保删除的文件在监控目录内
             is_in_watch_dir = any(
-                subtitle_path.startswith(watch_dir)
-                for watch_dir in watch_dirs
+                real_subtitle_path.startswith(watched_dir)
+                for watched_dir in real_watch_dirs
             )
 
             if not is_in_watch_dir:
+                logger.warning(f"拒绝删除非监控目录文件: {real_subtitle_path}, 监控目录: {real_watch_dirs}")
                 return {"success": False, "message": "字幕文件不在监控目录内，无法删除"}
 
+            # 安全检查 3: 防止目录遍历攻击 - 确保文件名不包含路径分隔符
+            if '/' in os.path.basename(subtitle_path) or '\\' in os.path.basename(subtitle_path):
+                return {"success": False, "message": "文件名包含非法字符"}
+
             # 删除文件
-            os.remove(subtitle_path)
-            logger.info(f"已删除字幕文件: {subtitle_path}")
+            os.remove(real_subtitle_path)
+            logger.info(f"已删除字幕文件: {real_subtitle_path}")
             self._invalidate_library_cache()
 
             return {"success": True, "message": "字幕文件已删除"}

@@ -1,12 +1,15 @@
 import io
 import os
 import re
+import time
+import asyncio
 import unicodedata
 import zipfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
-from typing import List, Optional
+from typing import List, Optional, Dict
+from contextlib import asynccontextmanager
 
 import aiofiles
 
@@ -15,6 +18,102 @@ try:
 except ImportError:
     fuzz = None
 
+
+# ==================== 字幕源熔断器 ====================
+
+class CircuitBreaker:
+    """
+    字幕源熔断器 - 防止连续失败导致服务雪崩
+    连续失败 MAX_FAILURES 次后，该源进入 "断开" 状态，HALF_OPEN_WAIT 秒后尝试半开探测
+    """
+
+    MAX_FAILURES: int = 3
+    HALF_OPEN_WAIT: float = 30.0  # 秒
+
+    def __init__(self, name: str):
+        self.name = name
+        self._failures: int = 0
+        self._last_failure_time: float = 0.0
+        self._state: str = "closed"  # closed | open | half_open
+        self._lock = asyncio.Lock()
+
+    @property
+    def is_open(self) -> bool:
+        return self._state == "open"
+
+    @property
+    def is_half_open(self) -> bool:
+        return self._state == "half_open"
+
+    def record_success(self):
+        """记录成功，重置熔断器"""
+        self._failures = 0
+        self._state = "closed"
+
+    def record_failure(self):
+        """记录失败，达到阈值则断开"""
+        self._failures += 1
+        self._last_failure_time = time.monotonic()
+        if self._failures >= self.MAX_FAILURES:
+            self._state = "open"
+
+    async def can_proceed(self) -> bool:
+        """检查是否可以执行请求"""
+        async with self._lock:
+            if self._state == "closed":
+                return True
+            if self._state == "open":
+                # 检查是否应该进入半开状态
+                if time.monotonic() - self._last_failure_time >= self.HALF_OPEN_WAIT:
+                    self._state = "half_open"
+                    return True
+                return False
+            # half_open 状态允许请求通过
+            return True
+
+    def __repr__(self):
+        return f"CircuitBreaker({self.name}, state={self._state}, failures={self._failures})"
+
+
+# 全局熔断器实例字典
+_circuit_breakers: Dict[str, CircuitBreaker] = {}
+
+
+def get_circuit_breaker(source_name: str) -> CircuitBreaker:
+    """获取指定字幕源的熔断器实例"""
+    if source_name not in _circuit_breakers:
+        _circuit_breakers[source_name] = CircuitBreaker(source_name)
+    return _circuit_breakers[source_name]
+
+
+@asynccontextmanager
+async def circuit_breaker_context(source_name: str):
+    """
+    熔断器上下文管理器，使用方式:
+    
+        async with circuit_breaker_context("subhd"):
+            # 执行 subhd 相关操作
+            ...
+    """
+    breaker = get_circuit_breaker(source_name)
+    if not await breaker.can_proceed():
+        raise CircuitBreakerOpen(f"字幕源 {source_name} 熔断器已断开，请稍后重试")
+
+    try:
+        yield breaker
+    except Exception:
+        breaker.record_failure()
+        raise
+    else:
+        breaker.record_success()
+
+
+class CircuitBreakerOpen(Exception):
+    """熔断器开启异常"""
+    pass
+
+
+# ==================== 常量 ====================
 
 SEARCH_TERM_LIMIT = 10
 DOWNLOADABLE_SUBTITLE_EXTENSIONS = (".srt", ".ass", ".ssa", ".vtt", ".smi", ".sami", ".sub", ".idx", ".sup")

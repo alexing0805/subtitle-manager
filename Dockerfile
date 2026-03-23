@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     libgomp1 \
     fonts-noto-cjk \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
@@ -38,5 +39,9 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 8080
+
+# 健康检查 - 验证 API 和健康端点
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
 
 CMD ["python", "-m", "backend.api_server"]

@@ -69,6 +69,16 @@ class Settings(BaseSettings):
     NASTOOL_ENABLED: bool = False  # 是否启用 NASTool 对接
     NASTOOL_WEBHOOK_TOKEN: Optional[str] = None  # Webhook 安全令牌（可选）
     NASTOOL_PATH_MAPPINGS: Optional[str] = None  # NASTool 路径映射（NASTool路径=容器路径）
+
+    # 字幕格式优先级配置（格式名称=加分值，格式之间逗号分隔）
+    # 例如: "srt=0.08,ass=0.06,vtt=0.03,sup=-0.16"
+    SUBTITLE_FORMAT_BONUS: str = "srt=0.08,ass=0.06,ssa=0.06,vtt=0.03,smi=0.03,sami=0.03,sup=-0.16,idx=-0.16,sub=-0.16"
+
+    # 库缓存 TTL（秒），文件未变化时使用缓存
+    LIBRARY_CACHE_TTL: int = 600  # 默认 10 分钟
+
+    # CORS 来源白名单（逗号分隔），留空则只允许 localhost
+    CORS_ORIGINS: str = ""
     
     model_config = SettingsConfigDict(
         env_file=".env",

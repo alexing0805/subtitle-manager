@@ -3,7 +3,7 @@
 提供 RESTful API 供前端调用
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, BackgroundTasks
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -14,11 +14,28 @@ import shutil
 import logging
 from pathlib import Path
 import asyncio
+import time
+from collections import defaultdict
 
 from backend.subtitle_manager import SubtitleManager
-from backend.config import Config, reload_settings
+from backend.config import Config, reload_settings, settings
 from backend.tmdb_api import tmdb_api, init_tmdb_api
 from backend.nastool_webhook import NASToolWebhookHandler, NASToolWebhookData
+
+# 配置日志 - 脱敏敏感信息
+class SensitiveFilter(logging.Filter):
+    """过滤日志中的敏感信息"""
+    SENSITIVE_KEYS = ['token', 'password', 'api_key', 'apikey', 'secret', 'plex_token', 'nastool_webhook_token']
+    
+    def filter(self, record):
+        msg = record.getMessage()
+        for key in self.SENSITIVE_KEYS:
+            if key in msg.lower():
+                # 将敏感值替换为 ***
+                import re
+                msg = re.sub(rf'({key}[=:]\s*)[^&\s]+', rf'\1***', msg, flags=re.IGNORECASE)
+        record.msg = msg
+        return True
 
 # 配置日志
 logging.basicConfig(
@@ -26,6 +43,75 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+logger.addFilter(SensitiveFilter())
+
+# ==================== API 限流器 ====================
+
+class RateLimiter:
+    """
+    简单滑动窗口限流器
+    默认限制：每分钟 60 次请求
+    """
+    def __init__(self, requests_per_minute: int = 60):
+        self.requests_per_minute = requests_per_minute
+        self.window_size = 60.0  # 1分钟窗口
+        self._requests: Dict[str, List[float]] = defaultdict(list)
+        self._lock = asyncio.Lock()
+    
+    async def is_allowed(self, client_id: str) -> bool:
+        """检查是否允许请求，返回 True 表示允许"""
+        async with self._lock:
+            now = time.monotonic()
+            # 清理过期请求
+            self._requests[client_id] = [
+                t for t in self._requests[client_id]
+                if now - t < self.window_size
+            ]
+            
+            if len(self._requests[client_id]) >= self.requests_per_minute:
+                return False
+            
+            self._requests[client_id].append(now)
+            return True
+
+rate_limiter = RateLimiter(requests_per_minute=60)
+
+
+async def rate_limit_middleware(request: Request, call_next):
+    """限流中间件 - 忽略健康检查和文档路径"""
+    path = request.url.path
+    if path in ["/health", "/docs", "/openapi.json", "/redoc"] or path.startswith("/api/poster"):
+        return await call_next(request)
+    
+    client_ip = request.client.host if request.client else "unknown"
+    if not await rate_limiter.is_allowed(client_ip):
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "请求过于频繁，请稍后再试"}
+        )
+    return await call_next(request)
+
+
+# ==================== CORS 白名单配置 ====================
+
+def get_cors_origins() -> List[str]:
+    """
+    获取允许的 CORS 来源列表
+    从环境变量 CORS_ORIGINS 读取，逗号分隔
+    如果未配置，默认只允许同源 + localhost 开发调试
+    """
+    env_origins = os.environ.get("CORS_ORIGINS", "")
+    if env_origins:
+        return [origin.strip() for origin in env_origins.split(",") if origin.strip()]
+    # 默认允许的开发环境来源
+    return [
+        "http://localhost:18080",
+        "http://localhost:8080",
+        "http://127.0.0.1:18080",
+        "http://127.0.0.1:8080",
+    ]
+
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -37,14 +123,19 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-# 配置 CORS
+# 配置 CORS - 从环境变量读取白名单
+cors_origins = get_cors_origins()
+logger.info(f"CORS 配置: 允许来源 = {cors_origins}")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# 注册限流中间件
+app.middleware("http")(rate_limit_middleware)
 
 # 全局配置和字幕管理器实例
 config = Config()
@@ -62,6 +153,63 @@ async def startup_event():
     # 使用新配置重新初始化 TMDB API
     init_tmdb_api(new_settings.TMDB_API_KEY)
     logger.info("应用启动完成，配置已加载")
+
+
+# ==================== 健康检查 ====================
+
+class HealthStatus(BaseModel):
+    status: str
+    timestamp: str
+    version: str
+    uptime_seconds: float
+    components: Dict[str, str]
+
+
+@app.get("/health", response_model=HealthStatus, tags=["系统"])
+async def health_check():
+    """
+    健康检查端点
+    用于 Docker 健康检查和负载均衡器探测
+    """
+    from datetime import datetime
+    import sys
+    import time
+
+    # 基础状态
+    components = {
+        "api": "healthy",
+        "subtitle_manager": "healthy",
+        "config": "healthy",
+    }
+
+    # 检查字幕管理器
+    try:
+        stats = subtitle_manager.get_stats()
+        if stats:
+            components["subtitle_manager"] = "healthy"
+    except Exception as e:
+        components["subtitle_manager"] = f"unhealthy: {e}"
+
+    # 检查配置文件
+    try:
+        watch_dirs = settings.get_watch_dirs()
+        if not watch_dirs:
+            components["config"] = "warning: no watch directories configured"
+    except Exception as e:
+        components["config"] = f"warning: {e}"
+
+    # 整体状态
+    overall_status = "healthy"
+    if "unhealthy" in components.get("subtitle_manager", ""):
+        overall_status = "unhealthy"
+
+    return HealthStatus(
+        status=overall_status,
+        timestamp=datetime.now().isoformat(),
+        version="1.0.0",
+        uptime_seconds=time.monotonic(),
+        components=components
+    )
 
 
 # ==================== 静态文件服务（必须在API路由之前）====================
