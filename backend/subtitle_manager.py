@@ -313,6 +313,7 @@ class SubtitleManager:
         # 注意：video_info['series_tmdb_id'] 是从 series-level NFO 获取的正确 TMDB ID
         # 如果存在，优先使用它来查询 TMDB（因为 episode-level NFO 的 ID 可能是错误的）
         query_tmdb_id = video_info.get('series_tmdb_id') or video_info.get('tmdb_id')
+        logger.info(f"[DEBUG] query_tmdb_id={query_tmdb_id}, series_tmdb_id={video_info.get('series_tmdb_id')}, tmdb_id={video_info.get('tmdb_id')}, TMDB_API_KEY configured={bool(settings.TMDB_API_KEY and tmdb_api.api_key)}")
         if query_tmdb_id and settings.TMDB_API_KEY and tmdb_api.api_key:
             try:
                 tmdb_info = await (
