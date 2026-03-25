@@ -233,6 +233,7 @@ class Movie(BaseModel):
     resolution: Optional[str] = None
     size: Optional[int] = None
     posterPath: Optional[str] = None
+    fanartPath: Optional[str] = None
     tmdbId: Optional[str] = None
     imdbId: Optional[str] = None
     originalTitle: Optional[str] = None
@@ -244,6 +245,7 @@ class TVShow(BaseModel):
     name: str
     year: Optional[int] = None
     posterPath: Optional[str] = None
+    fanartPath: Optional[str] = None
     seasonCount: int
     episodeCount: int
     subtitleStats: Dict[str, int]
@@ -822,6 +824,23 @@ async def health_check():
 
 # -------------------- 海报图片服务 --------------------
 
+def _pick_existing_image(*paths):
+    for path in paths:
+        if path and os.path.exists(path):
+            return path
+    return None
+
+
+def _resolve_media_art(media: Dict[str, Any], preferred: str = "poster") -> Optional[str]:
+    poster_path = media.get('posterPath')
+    fanart_path = media.get('fanartPath')
+
+    if preferred == "fanart":
+        return _pick_existing_image(fanart_path, poster_path)
+
+    return _pick_existing_image(poster_path, fanart_path)
+
+
 @app.get("/api/poster/{movie_id}")
 async def get_poster(movie_id: int):
     """获取电影海报图片"""
@@ -836,6 +855,20 @@ async def get_poster(movie_id: int):
     return FileResponse(poster_path)
 
 
+@app.get("/api/art/movie/{movie_id}")
+async def get_movie_art(movie_id: int, preferred: str = "poster"):
+    """按偏好获取电影图片，支持 poster/fanart 自动回退"""
+    movie = subtitle_manager.get_movie(movie_id)
+    if not movie:
+        raise HTTPException(status_code=404, detail="电影不存在")
+
+    art_path = _resolve_media_art(movie, preferred)
+    if not art_path:
+        raise HTTPException(status_code=404, detail="图片不存在")
+
+    return FileResponse(art_path)
+
+
 @app.get("/api/poster/tvshow/{show_id}")
 async def get_tvshow_poster(show_id: int):
     """获取电视剧海报图片"""
@@ -848,6 +881,20 @@ async def get_tvshow_poster(show_id: int):
         raise HTTPException(status_code=404, detail="海报不存在")
 
     return FileResponse(poster_path)
+
+
+@app.get("/api/art/tvshow/{show_id}")
+async def get_tvshow_art(show_id: int, preferred: str = "poster"):
+    """按偏好获取电视剧图片，支持 poster/fanart 自动回退"""
+    show = subtitle_manager.get_tvshow(show_id)
+    if not show:
+        raise HTTPException(status_code=404, detail="电视剧不存在")
+
+    art_path = _resolve_media_art(show, preferred)
+    if not art_path:
+        raise HTTPException(status_code=404, detail="图片不存在")
+
+    return FileResponse(art_path)
 
 
 @app.get("/api/poster/tvshow/{show_id}/season/{season_number}")
@@ -877,16 +924,30 @@ async def get_season_poster(show_id: int, season_number: int):
 
 @app.get("/api/poster/anime/{show_id}")
 async def get_anime_poster(show_id: int):
-    """鑾峰彇鍔ㄦ极娴锋姤鍥剧墖"""
+    """获取动漫海报图片"""
     show = subtitle_manager.get_anime_show(show_id)
     if not show:
-        raise HTTPException(status_code=404, detail="鍔ㄦ极涓嶅瓨鍦?")
+        raise HTTPException(status_code=404, detail="动漫不存在")
 
     poster_path = show.get('posterPath')
     if not poster_path or not os.path.exists(poster_path):
-        raise HTTPException(status_code=404, detail="娴锋姤涓嶅瓨鍦?")
+        raise HTTPException(status_code=404, detail="海报不存在")
 
     return FileResponse(poster_path)
+
+
+@app.get("/api/art/anime/{show_id}")
+async def get_anime_art(show_id: int, preferred: str = "poster"):
+    """按偏好获取动漫图片，支持 poster/fanart 自动回退"""
+    show = subtitle_manager.get_anime_show(show_id)
+    if not show:
+        raise HTTPException(status_code=404, detail="动漫不存在")
+
+    art_path = _resolve_media_art(show, preferred)
+    if not art_path:
+        raise HTTPException(status_code=404, detail="图片不存在")
+
+    return FileResponse(art_path)
 
 
 @app.get("/api/poster/anime/{show_id}/season/{season_number}")

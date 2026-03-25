@@ -1455,6 +1455,7 @@ class SubtitleManager:
 
                 show_key = show_name.lower()
                 poster_path = self._find_show_poster(root, show_name)
+                fanart_path = self._find_show_fanart(root, show_name)
 
                 if show_key not in shows:
                     shows[show_key] = {
@@ -1462,10 +1463,14 @@ class SubtitleManager:
                         'name': show_name,
                         'year': episode_info.get('year'),
                         'posterPath': poster_path,
+                        'fanartPath': fanart_path,
                         'seasons': {}
                     }
-                elif not shows[show_key].get('posterPath') and poster_path:
-                    shows[show_key]['posterPath'] = poster_path
+                else:
+                    if not shows[show_key].get('posterPath') and poster_path:
+                        shows[show_key]['posterPath'] = poster_path
+                    if not shows[show_key].get('fanartPath') and fanart_path:
+                        shows[show_key]['fanartPath'] = fanart_path
 
                 season_num = episode_info.get('season', 1)
                 if season_num not in shows[show_key]['seasons']:
@@ -1509,6 +1514,7 @@ class SubtitleManager:
                 'name': show_data['name'],
                 'year': show_data.get('year'),
                 'posterPath': show_data.get('posterPath'),
+                'fanartPath': show_data.get('fanartPath'),
                 'seasonCount': len(seasons_list),
                 'episodeCount': total_episodes,
                 'subtitleStats': self._build_subtitle_stats(episodes_with_subtitle, total_episodes),
@@ -1542,19 +1548,9 @@ class SubtitleManager:
                         # 使用 NFO 解析器获取视频信息（包含 NFO 文件信息）
                         video_info = NFOParser.get_video_info_with_nfo(file_path)
 
-                        # 检查同目录下是否有海报图片
-                        poster_path = None
-                        poster_extensions = ['.jpg', '.jpeg', '.png', '.webp']
-                        poster_names = ['poster', 'cover', 'folder', 'thumb', 'thumbnail']
-
-                        for poster_name in poster_names:
-                            for ext in poster_extensions:
-                                potential_poster = os.path.join(root, f"{poster_name}{ext}")
-                                if os.path.exists(potential_poster):
-                                    poster_path = potential_poster
-                                    break
-                            if poster_path:
-                                break
+                        # 检查同目录下是否有封面图片
+                        poster_path = self._find_media_art(root, ['poster', 'cover', 'folder', 'thumb', 'thumbnail'])
+                        fanart_path = self._find_media_art(root, ['fanart', 'backdrop', 'background', 'landscape', 'banner'])
 
                         # 获取 NFO 中的标题
                         nfo_title = None
@@ -1574,6 +1570,7 @@ class SubtitleManager:
                             'resolution': video_info.get('resolution'),
                             'size': os.path.getsize(file_path) if os.path.exists(file_path) else 0,
                             'posterPath': poster_path,
+                            'fanartPath': fanart_path,
                             'tmdbId': video_info.get('tmdb_id'),
                             'imdbId': video_info.get('imdb_id'),
                             'originalTitle': video_info.get('original_title'),
@@ -1583,49 +1580,70 @@ class SubtitleManager:
         self._set_cached_library("movies", movies)
         return movies
     
+    def _find_media_art(self, directory: str, names: list[str]) -> Optional[str]:
+        """在目录中按候选名称查找图片资源"""
+        extensions = ['.jpg', '.jpeg', '.png', '.webp']
+        for name in names:
+            for ext in extensions:
+                art_path = os.path.join(directory, f'{name}{ext}')
+                if os.path.exists(art_path):
+                    return art_path
+        return None
+
     def _find_show_poster(self, episode_dir: str, show_name: str) -> Optional[str]:
         """查找电视剧海报"""
-        # 可能的父目录（剧集所在目录的父目录或当前目录）
         possible_dirs = [episode_dir]
         parent_dir = os.path.dirname(episode_dir)
         if parent_dir and parent_dir != episode_dir:
             possible_dirs.append(parent_dir)
-        
-        # 常见海报文件名
-        poster_names = ['poster.jpg', 'poster.png', 'folder.jpg', 'folder.png', 
-                       'show.jpg', 'show.png', f'{show_name}.jpg', f'{show_name}.png']
-        
+
+        show_slug = os.path.splitext(show_name)[0]
+        poster_candidates = ['poster', 'folder', 'show', show_slug]
+
         for directory in possible_dirs:
-            for poster_name in poster_names:
-                poster_path = os.path.join(directory, poster_name)
-                if os.path.exists(poster_path):
-                    return poster_path
-        
+            poster_path = self._find_media_art(directory, poster_candidates)
+            if poster_path:
+                return poster_path
+
         return None
     
-    def _find_season_poster(self, episode_dir: str, season_num: int) -> Optional[str]:
-        """查找季海报"""
-        # 可能的目录
+    def _find_show_fanart(self, episode_dir: str, show_name: str) -> Optional[str]:
+        """查找电视剧横版图/fanart"""
         possible_dirs = [episode_dir]
         parent_dir = os.path.dirname(episode_dir)
         if parent_dir and parent_dir != episode_dir:
             possible_dirs.append(parent_dir)
-        
-        # 常见季海报文件名
-        season_poster_names = [
-            f'season{season_num:02d}-poster.jpg', f'season{season_num:02d}-poster.png',
-            f'season{season_num}-poster.jpg', f'season{season_num}-poster.png',
-            f'Season {season_num}.jpg', f'Season {season_num}.png',
-            f'season{season_num:02d}.jpg', f'season{season_num:02d}.png',
-            'season-poster.jpg', 'season-poster.png'
-        ]
-        
+
+        show_slug = os.path.splitext(show_name)[0]
+        fanart_candidates = ['fanart', 'backdrop', 'background', 'landscape', f'{show_slug}-fanart']
+
         for directory in possible_dirs:
-            for poster_name in season_poster_names:
-                poster_path = os.path.join(directory, poster_name)
-                if os.path.exists(poster_path):
-                    return poster_path
-        
+            fanart_path = self._find_media_art(directory, fanart_candidates)
+            if fanart_path:
+                return fanart_path
+
+        return None
+
+    def _find_season_poster(self, episode_dir: str, season_num: int) -> Optional[str]:
+        """查找季海报"""
+        possible_dirs = [episode_dir]
+        parent_dir = os.path.dirname(episode_dir)
+        if parent_dir and parent_dir != episode_dir:
+            possible_dirs.append(parent_dir)
+
+        season_poster_names = [
+            f'season{season_num:02d}-poster',
+            f'season{season_num}-poster',
+            f'Season {season_num}',
+            f'season{season_num:02d}',
+            'season-poster'
+        ]
+
+        for directory in possible_dirs:
+            poster_path = self._find_media_art(directory, season_poster_names)
+            if poster_path:
+                return poster_path
+
         return None
     
     def scan_library(self, background: bool = False):

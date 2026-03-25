@@ -39,8 +39,8 @@
       >
         <div class="movie-poster">
           <img
-            v-if="movie.posterPath"
-            :src="`/api/poster/${movie.id}`"
+            v-if="hasMediaArt(movie)"
+            :src="getMovieArtUrl(movie)"
             :alt="movie.name"
             class="poster-image"
             @error="handlePosterError"
@@ -92,8 +92,8 @@
     >
       <div v-if="currentMovie" class="search-dialog-content">
         <div class="movie-info-header">
-          <div class="header-poster" v-if="currentMovie.posterPath">
-            <img :src="`/api/poster/${currentMovie.id}`" :alt="currentMovie.name" />
+          <div class="header-poster" v-if="hasMediaArt(currentMovie)">
+            <img :src="getMovieArtUrl(currentMovie)" :alt="currentMovie.name" />
           </div>
           <div class="header-info">
             <h3>{{ currentMovie.name }}</h3>
@@ -170,8 +170,8 @@
     >
       <div v-if="currentMovie" class="manage-dialog-content">
         <div class="movie-info-header">
-          <div class="header-poster" v-if="currentMovie.posterPath">
-            <img :src="`/api/poster/${currentMovie.id}`" :alt="currentMovie.name" />
+          <div class="header-poster" v-if="hasMediaArt(currentMovie)">
+            <img :src="getMovieArtUrl(currentMovie)" :alt="currentMovie.name" />
           </div>
           <div class="header-info">
             <h3>{{ currentMovie.name }}</h3>
@@ -246,7 +246,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage } from 'element-plus'
 import { Search, Refresh, Film, Check, Download, Document, Delete } from '@element-plus/icons-vue'
@@ -269,6 +269,7 @@ const searching = ref(false)
 const downloading = ref(null)
 const loadingSubtitles = ref(false)
 const deletingSubtitle = ref(null)
+const isMobileView = ref(false)
 
 const movies = ref([])
 
@@ -289,13 +290,34 @@ const filteredMovies = computed(() => {
   return result
 })
 
+function updateViewportState() {
+  isMobileView.value = window.matchMedia('(max-width: 768px)').matches
+}
+
+function hasMediaArt(media) {
+  return Boolean(media?.posterPath || media?.fanartPath)
+}
+
+function getMovieArtUrl(movie) {
+  if (!movie?.id) return ''
+  const preferred = isMobileView.value ? 'fanart' : 'poster'
+  return `/api/art/movie/${movie.id}?preferred=${preferred}`
+}
+
 onMounted(async () => {
+  updateViewportState()
+  window.addEventListener('resize', updateViewportState)
+
   try {
     await store.fetchMovies()
     movies.value = store.movies
   } catch (error) {
     ElMessage.error('获取电影列表失败')
   }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateViewportState)
 })
 
 function handleMovieClick(movie) {

@@ -38,8 +38,8 @@
       >
         <div class="show-poster">
           <img
-            v-if="show.posterPath"
-            :src="`/api/poster/tvshow/${show.id}`"
+            v-if="hasMediaArt(show)"
+            :src="getShowArtUrl(show)"
             :alt="show.name"
             class="poster-image"
             @error="handlePosterError"
@@ -103,8 +103,8 @@
         <div class="detail-header">
           <div class="detail-poster">
             <img
-              v-if="currentShow.posterPath"
-              :src="`/api/poster/tvshow/${currentShow.id}`"
+              v-if="hasMediaArt(currentShow)"
+              :src="getShowArtUrl(currentShow)"
               :alt="currentShow.name"
               class="poster-image"
               @error="handlePosterError"
@@ -218,8 +218,8 @@
         <div class="episode-info-header">
           <div class="episode-poster">
             <img
-              v-if="currentShow?.posterPath"
-              :src="`/api/poster/tvshow/${currentShow.id}`"
+              v-if="hasMediaArt(currentShow)"
+              :src="getShowArtUrl(currentShow)"
               class="poster-thumb"
             />
             <div v-else class="poster-thumb-placeholder">
@@ -291,7 +291,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage } from 'element-plus'
@@ -307,6 +307,7 @@ const router = useRouter()
 const store = useSubtitleStore()
 const searchQuery = ref('')
 const shows = ref([])
+const isMobileView = ref(false)
 
 // 详情对话框
 const showDetailVisible = ref(false)
@@ -352,13 +353,34 @@ function handleSeasonPosterError(e) {
   e.target.style.display = 'none'
 }
 
+function updateViewportState() {
+  isMobileView.value = window.matchMedia('(max-width: 768px)').matches
+}
+
+function hasMediaArt(media) {
+  return Boolean(media?.posterPath || media?.fanartPath)
+}
+
+function getShowArtUrl(show) {
+  if (!show?.id) return ''
+  const preferred = isMobileView.value ? 'fanart' : 'poster'
+  return `/api/art/tvshow/${show.id}?preferred=${preferred}`
+}
+
 onMounted(async () => {
+  updateViewportState()
+  window.addEventListener('resize', updateViewportState)
+
   try {
     await store.fetchTVShows()
     shows.value = store.tvShows
   } catch (error) {
     ElMessage.error('获取电视剧列表失败')
   }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateViewportState)
 })
 
 function handleShowClick(show) {
