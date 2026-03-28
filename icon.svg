@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Subtitle Manager Icon</title>
+  <desc>Minimalist app icon for subtitle manager - play triangle with subtitle bars</desc>
+
+  <!-- Background: Deep Dark Slate Rounded Square -->
+  <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="#1E1E2E"/>
+
+  <!-- Play Triangle: White, centered, slightly above middle -->
+  <path d="M 412 256
+           L 412 768
+           L 756 512
+           Z"
+        fill="#FFFFFF"
+        stroke="#FFFFFF"
+        stroke-width="48"
+        stroke-linejoin="round"/>
+
+  <!-- Subtitle Bar 1: White, centered below triangle -->
+  <rect x="357" y="800"
+        width="310"
+        height="40"
+        rx="20" ry="20"
+        fill="#FFFFFF"/>
+
+  <!-- Subtitle Bar 2: Amber/Gold, centered below bar 1 -->
+  <rect x="357" y="868"
+        width="310"
+        height="40"
+        rx="20" ry="20"
+        fill="#F5A623"/>
+</svg>
