@@ -23,7 +23,7 @@
           <el-option label="有字幕" value="with" />
           <el-option label="无字幕" value="without" />
         </el-select>
-        <button class="infuse-button" @click="handleScan">
+        <button class="infuse-button scan-btn" @click="handleScan">
           <el-icon><Refresh /></el-icon>
           扫描
         </button>
@@ -248,7 +248,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useSubtitleStore } from '../stores/subtitle'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Film, Check, Download, Document, Delete } from '@element-plus/icons-vue'
 import axios from 'axios'
 
@@ -460,15 +460,55 @@ async function handleDownload(result) {
 
 async function handleScan() {
   try {
-    ElMessage.info('开始扫描...')
-    await api.post('/scan')
-    ElMessage.success('扫描任务已启动')
-    setTimeout(async () => {
-      await store.fetchMovies()
-      movies.value = store.movies
-    }, 3000)
+    await ElMessageBox.confirm(
+      '即将扫描电影库，查找缺失的字幕文件。此操作可能需要几分钟时间，是否继续？',
+      '确认扫描',
+      {
+        confirmButtonText: '开始扫描',
+        cancelButtonText: '取消',
+        type: 'info',
+        confirmButtonClass: 'infuse-btn-primary scan-confirm-btn',
+        cancelButtonClass: 'infuse-btn-cancel',
+        showClose: false,
+        closeOnClickModal: false,
+        closeOnPressEscape: false,
+        beforeClose: (action, instance, done) => {
+          if (action === 'confirm') {
+            instance.confirmButtonLoading = true
+            instance.confirmButtonText = '扫描中...'
+            // 禁止关闭
+            return
+          }
+          done()
+        }
+      }
+    )
+    
+    ElMessage.info('正在扫描电影库...')
+    const result = await store.scanLibrary()
+    
+    if (result && result.success === false) {
+      ElMessage.error(result.message || '扫描失败')
+      return
+    }
+    
+    ElMessage.success('扫描完成！正在刷新列表...')
+    
+    // 等待一下让后台扫描完成
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // 刷新列表
+    await store.fetchMovies()
+    movies.value = store.movies
+    
+    ElMessage.success('列表已更新')
   } catch (error) {
-    ElMessage.error('扫描失败')
+    // 用户取消时 error 为 'cancel' 或 'close'
+    if (error === 'cancel' || error === 'close') {
+      return
+    }
+    console.error('扫描失败:', error)
+    ElMessage.error('扫描失败: ' + (error.message || '未知错误'))
   }
 }
 
@@ -512,6 +552,28 @@ function handlePosterError(event) {
 
 .filter-group .el-select {
   min-width: 120px;
+}
+
+/* 扫描按钮特殊样式 */
+.scan-btn {
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.9), rgba(255, 133, 85, 0.9)) !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 12px 28px rgba(255, 107, 53, 0.35) !important;
+}
+
+.scan-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 117, 63, 0.95), rgba(255, 143, 95, 0.95)) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 0 0 1px rgba(255, 107, 53, 0.5), 0 0 26px rgba(255, 107, 53, 0.4), 0 18px 36px rgba(255, 107, 53, 0.3) !important;
+}
+
+.scan-btn .el-icon {
+  transition: transform 0.3s ease;
+}
+
+.scan-btn:hover .el-icon {
+  transform: rotate(90deg);
 }
 
 .movies-grid {
@@ -1181,5 +1243,64 @@ function handlePosterError(event) {
 .source-tag.subhd {
   background: rgba(59, 130, 246, 0.15);
   color: #3b82f6;
+}
+
+/* 扫描确认对话框样式 */
+:deep(.scan-confirm-btn) {
+  background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%) !important;
+  border-color: #ff6b35 !important;
+  color: white !important;
+  font-weight: 600;
+  padding: 12px 28px !important;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+:deep(.scan-confirm-btn:hover) {
+  background: linear-gradient(135deg, #ff7b45 0%, #ff9555 100%) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+}
+
+:deep(.scan-confirm-btn.el-button--primary.is-loading) {
+  background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%) !important;
+}
+
+:deep(.infuse-btn-cancel) {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: var(--infuse-text-secondary) !important;
+}
+
+:deep(.infuse-btn-cancel:hover) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--infuse-text-primary) !important;
+}
+
+/* 对话框背景美化 */
+:deep(.el-message-box) {
+  background: var(--infuse-bg-card) !important;
+  border: 1px solid var(--infuse-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+:deep(.el-message-box__title) {
+  color: var(--infuse-text-primary) !important;
+  font-weight: 700;
+}
+
+:deep(.el-message-box__message) {
+  color: var(--infuse-text-secondary) !important;
+  line-height: 1.6;
+}
+
+:deep(.el-message-box__headerbtn .el-message-box__close) {
+  color: var(--infuse-text-muted) !important;
+}
+
+:deep(.el-message-box__headerbtn:hover .el-message-box__close) {
+  color: var(--infuse-text-primary) !important;
 }
 </style>

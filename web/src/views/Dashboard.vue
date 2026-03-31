@@ -194,19 +194,48 @@ async function handleScan() {
         confirmButtonText: '开始扫描',
         cancelButtonText: '取消',
         type: 'info',
-        confirmButtonClass: 'infuse-btn-primary',
+        confirmButtonClass: 'infuse-btn-primary scan-confirm-btn',
+        cancelButtonClass: 'infuse-btn-cancel',
+        showClose: false,
+        closeOnClickModal: false,
+        closeOnPressEscape: false,
+        beforeClose: (action, instance, done) => {
+          if (action === 'confirm') {
+            instance.confirmButtonLoading = true
+            instance.confirmButtonText = '扫描中...'
+            // 禁止关闭
+            return
+          }
+          done()
+        }
       }
     )
-    ElMessage.info('开始扫描库...')
-    await store.scanLibrary()
-    ElMessage.success('扫描完成')
+    
+    ElMessage.info('正在扫描媒体库...')
+    const result = await store.scanLibrary()
+    
+    if (result && result.success === false) {
+      ElMessage.error(result.message || '扫描失败')
+      return
+    }
+    
+    ElMessage.success('扫描完成！正在更新统计数据...')
+    
+    // 等待一下让后台扫描完成
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // 更新统计数据
     const data = await store.fetchStats()
     rawStats.value = data
+    
+    ElMessage.success('统计数据已更新')
   } catch (error) {
-    // 用户取消时不报错
-    if (error !== 'cancel') {
-      ElMessage.error('扫描失败')
+    // 用户取消时 error 为 'cancel' 或 'close'
+    if (error === 'cancel' || error === 'close') {
+      return
     }
+    console.error('扫描失败:', error)
+    ElMessage.error('扫描失败: ' + (error.message || '未知错误'))
   }
 }
 
@@ -581,5 +610,78 @@ function getActivityTagType(status) {
   .actions-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* 扫描确认对话框样式 */
+:deep(.scan-confirm-btn) {
+  background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%) !important;
+  border-color: #ff6b35 !important;
+  color: white !important;
+  font-weight: 600;
+  padding: 12px 28px !important;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+:deep(.scan-confirm-btn:hover) {
+  background: linear-gradient(135deg, #ff7b45 0%, #ff9555 100%) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+}
+
+:deep(.scan-confirm-btn.el-button--primary.is-loading) {
+  background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%) !important;
+}
+
+:deep(.infuse-btn-cancel) {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: var(--infuse-text-secondary) !important;
+}
+
+:deep(.infuse-btn-cancel:hover) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--infuse-text-primary) !important;
+}
+
+/* 扫描按钮美化 */
+.actions-grid .action-card:first-child:hover .action-icon-wrapper {
+  animation: pulse-scan 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-scan {
+  0%, 100% {
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+  }
+  50% {
+    box-shadow: 0 10px 30px rgba(255, 107, 53, 0.6);
+  }
+}
+
+/* 对话框背景美化 */
+:deep(.el-message-box) {
+  background: var(--infuse-bg-card) !important;
+  border: 1px solid var(--infuse-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+:deep(.el-message-box__title) {
+  color: var(--infuse-text-primary) !important;
+  font-weight: 700;
+}
+
+:deep(.el-message-box__message) {
+  color: var(--infuse-text-secondary) !important;
+  line-height: 1.6;
+}
+
+:deep(.el-message-box__headerbtn .el-message-box__close) {
+  color: var(--infuse-text-muted) !important;
+}
+
+:deep(.el-message-box__headerbtn:hover .el-message-box__close) {
+  color: var(--infuse-text-primary) !important;
 }
 </style>
