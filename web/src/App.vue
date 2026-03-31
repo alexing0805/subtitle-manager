@@ -563,4 +563,59 @@ body::before {
     padding: 14px 20px 20px !important;
   }
 }
+
+/* --- Global Polish --- */
+@keyframes shimmer {
+  0% { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(200%) skewX(-15deg); }
+}
+
+.infuse-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.infuse-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.04),
+    transparent
+  );
+  transition: 0.5s;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.infuse-card:hover::after {
+  animation: shimmer 1.5s infinite;
+}
+
+/* Better Text Rendering */
+h1, h2, h3 {
+  letter-spacing: -0.02em;
+  text-rendering: optimizeLegibility;
+}
+
+/* Global Selection Color */
+::selection {
+  background: var(--infuse-accent);
+  color: #000;
+}
+
+/* Smooth Scrollbar */
+body::-webkit-scrollbar {
+  width: 10px;
+}
+body::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--infuse-accent), var(--infuse-accent-alt));
+  border: 3px solid var(--infuse-bg-primary);
+  border-radius: 10px;
+}
 </style>

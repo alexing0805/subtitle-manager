@@ -236,6 +236,27 @@ function getActivityTagType(status) {
   max-width: 1200px;
 }
 
+/* --- Entrance Animations --- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard > * {
+  animation: fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.welcome-section { animation-delay: 0.1s; }
+.stats-grid { animation-delay: 0.2s; }
+.quick-actions { animation-delay: 0.3s; }
+.recent-activity { animation-delay: 0.4s; }
+
 /* 欢迎区域 */
 .welcome-section {
   margin-bottom: 40px;
@@ -288,6 +309,25 @@ function getActivityTagType(status) {
     rgba(10, 16, 38, 0.76);
   border: 1px solid rgba(119, 247, 255, 0.12);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.stat-card:hover::after {
+  opacity: 1;
 }
 
 .stat-icon {
@@ -300,14 +340,22 @@ function getActivityTagType(status) {
   color: white;
   font-size: 24px;
   flex-shrink: 0;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+}
+
+.stat-card:hover .stat-icon {
+  transform: scale(1.1) rotate(5deg);
 }
 
 .stat-value {
   font-size: 36px;
   font-weight: 800;
-  color: var(--infuse-text-primary);
   line-height: 1;
   margin-bottom: 4px;
+  background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .stat-label {
@@ -354,10 +402,13 @@ function getActivityTagType(status) {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.04), transparent 28%),
     rgba(10, 16, 38, 0.76);
-  border: 1px solid rgba(119, 247, 255, 0.12);
+  border: 1px solid rgba(119, 247, 255, 0.12) !important;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .action-card:hover {
+  background: rgba(15, 24, 52, 0.8) !important;
+  border-color: var(--infuse-accent) !important;
   transform: translateY(-6px);
   box-shadow: var(--infuse-shadow-glow), var(--infuse-shadow-lg);
 }
@@ -372,6 +423,7 @@ function getActivityTagType(status) {
   color: white;
   font-size: 28px;
   transition: transform var(--infuse-transition-normal);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.3);
 }
 
 .action-card:hover .action-icon-wrapper {
@@ -394,7 +446,8 @@ function getActivityTagType(status) {
 }
 
 .activity-list {
-  padding: 8px 0;
+  position: relative;
+  padding: 20px 0 !important;
 }
 
 .empty-state {
@@ -413,16 +466,28 @@ function getActivityTagType(status) {
 }
 
 .activity-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--infuse-border);
+  padding: 16px 24px 16px 32px;
+  border-bottom: none !important;
   transition: background var(--infuse-transition-fast);
 }
 
-.activity-item:last-child {
-  border-bottom: none;
+.activity-item::before {
+  content: "";
+  position: absolute;
+  left: 43px;
+  top: 56px;
+  bottom: -16px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--infuse-border) 0%, transparent 100%);
+  z-index: 0;
+}
+
+.activity-item:last-child::before {
+  display: none;
 }
 
 .activity-item:hover {
@@ -439,6 +504,8 @@ function getActivityTagType(status) {
   background: rgba(255, 107, 53, 0.15);
   color: var(--infuse-accent);
   flex-shrink: 0;
+  z-index: 1;
+  box-shadow: 0 0 0 4px var(--infuse-bg-primary);
 }
 
 .activity-icon.download {
@@ -453,6 +520,17 @@ function getActivityTagType(status) {
 
 .activity-content {
   flex: 1;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px 16px;
+  border-radius: var(--infuse-radius-md);
+  border: 1px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.activity-item:hover .activity-content {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateX(4px);
 }
 
 .activity-title {
