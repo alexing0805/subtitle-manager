@@ -2063,6 +2063,11 @@ class SubtitleManager:
         logger.info(f"[download_anime] anime count={len(anime_data)}, episode_id type={type(episode_id)}")
         episode = self._find_episode_by_id(anime_data, episode_id)
         if not episode:
+            logger.warning(f"[download_anime] 动漫缓存未命中 episode_id={episode_id}，降级重新扫描 NFO")
+            # 缓存里没有这个 episode，降级扫描 NFO 文件
+            fresh_anime = self._scan_series_library(settings.ANIME_DIR, "anime")
+            episode = self._find_episode_by_id(fresh_anime, episode_id)
+        if not episode:
             logger.warning(f"[download_anime] 动漫不存在: episode_id={episode_id}")
             return {"success": False, "message": "动漫不存在"}
 
