@@ -2,20 +2,12 @@
   <div class="dashboard" ref="dashboardRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
     <!-- 背景粒子效果 -->
     <div class="bg-particles">
-      <div 
-        v-for="n in 20" 
-        :key="n" 
+      <div
+        v-for="n in 20"
+        :key="n"
         class="particle"
         :style="getParticleStyle(n)"
       ></div>
-    </div>
-    
-    <!-- 黑洞效果 -->
-    <div class="black-hole" :style="blackHoleStyle" ref="blackHoleRef">
-      <div class="black-hole-core"></div>
-      <div class="black-hole-ring"></div>
-      <div class="black-hole-ring ring-2"></div>
-      <div class="black-hole-ring ring-3"></div>
     </div>
 
     <!-- 欢迎区域 -->
@@ -27,8 +19,8 @@
     <!-- 统计卡片 -->
     <div class="stats-grid">
       <!-- 电影卡片 -->
-      <div 
-        class="stat-card infuse-card" 
+      <div
+        class="stat-card infuse-card"
         @click="$router.push('/movies')"
         @mouseenter="handleCardHover(0, $event)"
         @mousemove="handleCardMouseMove(0, $event)"
@@ -42,7 +34,7 @@
           <div class="stat-value">{{ stats.totalMovies }}</div>
           <div class="stat-label">电影</div>
           <div class="stat-sublabel">
-            <span class="highlight-success">{{ stats.moviesWithSubtitle }}</span> 有字幕 / 
+            <span class="highlight-success">{{ stats.moviesWithSubtitle }}</span> 有字幕 /
             <span class="highlight-warning">{{ stats.moviesWithoutSubtitle }}</span> 缺字幕
           </div>
         </div>
@@ -52,7 +44,7 @@
       </div>
 
       <!-- 电视剧卡片 -->
-      <div 
+      <div
         class="stat-card infuse-card"
         @click="$router.push('/tvshows')"
         @mouseenter="handleCardHover(1, $event)"
@@ -67,7 +59,7 @@
           <div class="stat-value">{{ stats.totalTVShows }}</div>
           <div class="stat-label">电视剧</div>
           <div class="stat-sublabel">
-            <span class="highlight-info">{{ stats.totalEpisodes }}</span> 集 / 
+            <span class="highlight-info">{{ stats.totalEpisodes }}</span> 集 /
             <span class="highlight-success">{{ stats.episodesWithSubtitle }}</span> 有字幕
           </div>
         </div>
@@ -77,7 +69,7 @@
       </div>
 
       <!-- 动漫卡片 -->
-      <div 
+      <div
         class="stat-card infuse-card"
         @click="$router.push('/anime')"
         @mouseenter="handleCardHover(2, $event)"
@@ -92,7 +84,7 @@
           <div class="stat-value">{{ stats.totalAnime }}</div>
           <div class="stat-label">动漫</div>
           <div class="stat-sublabel">
-            <span class="highlight-success">{{ stats.animeWithSubtitle }}</span> 有字幕 / 
+            <span class="highlight-success">{{ stats.animeWithSubtitle }}</span> 有字幕 /
             <span class="highlight-warning">{{ stats.animeWithoutSubtitle }}</span> 缺字幕
           </div>
         </div>
@@ -102,7 +94,7 @@
       </div>
 
       <!-- 总览卡片 -->
-      <div 
+      <div
         class="stat-card total-card infuse-card"
         @mouseenter="handleCardHover(3, $event)"
         @mousemove="handleCardMouseMove(3, $event)"
@@ -139,7 +131,7 @@
           <span class="action-text">扫描库</span>
           <div class="action-ripple" :ref="el => rippleRefs[0] = el"></div>
         </button>
-        
+
         <button class="action-card infuse-card" @click="$router.push('/batch-upload')" @mouseenter="handleActionHover(1, $event)" @mouseleave="handleActionLeave">
           <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #5856d6 0%, #af52de 100%);">
             <el-icon class="action-icon"><Upload /></el-icon>
@@ -147,7 +139,7 @@
           <span class="action-text">批量上传</span>
           <div class="action-ripple" :ref="el => rippleRefs[1] = el"></div>
         </button>
-        
+
         <button class="action-card infuse-card" @click="handleAutoDownload" @mouseenter="handleActionHover(2, $event)" @mouseleave="handleActionLeave">
           <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #34c759 0%, #30d158 100%);">
             <el-icon class="action-icon"><Download /></el-icon>
@@ -155,7 +147,7 @@
           <span class="action-text">自动下载</span>
           <div class="action-ripple" :ref="el => rippleRefs[2] = el"></div>
         </button>
-        
+
         <button class="action-card infuse-card" @click="$router.push('/settings')" @mouseenter="handleActionHover(3, $event)" @mouseleave="handleActionLeave">
           <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #0071e3 0%, #42a5f5 100%);">
             <el-icon class="action-icon"><Setting /></el-icon>
@@ -175,11 +167,11 @@
             <el-icon class="empty-icon"><Clock /></el-icon>
           </div>
           <p>暂无活动记录</p>
-          <span class="empty-hint">开始扫描或下载字幕后，这里将显示活动日志</span>
+          <span class="empty-hint">开始扫描或下载字幕后,这里将显示活动日志</span>
         </div>
         <TransitionGroup name="activity" tag="div" class="activity-inner" v-else>
-          <div 
-            v-for="(activity, index) in activities" 
+          <div
+            v-for="(activity, index) in activities"
             :key="activity.id"
             class="activity-item"
             :style="{ animationDelay: `${index * 0.1}s` }"
@@ -215,7 +207,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Film, Check, Warning, Loading, Refresh, Upload, Download, Setting, InfoFilled, 
+  Film, Check, Warning, Loading, Refresh, Upload, Download, Setting, InfoFilled,
   VideoCamera, ArrowRight, Grid, Clock
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
@@ -244,7 +236,6 @@ const store = useSubtitleStore()
 
 // Refs
 const dashboardRef = ref(null)
-const blackHoleRef = ref(null)
 const statGlowRefs = reactive([null, null, null, null])
 const rippleRefs = reactive([null, null, null, null])
 
@@ -267,13 +258,12 @@ const rawStats = ref({
 const activities = ref([])
 const loadingActivities = ref(false)
 const mousePos = reactive({ x: 0, y: 0 })
-const blackHolePos = reactive({ x: 0, y: 0 })
 
 // Computed
 const stats = computed(() => {
   const totalWithSubtitle = rawStats.value.moviesWithSubtitle + rawStats.value.episodesWithSubtitle + rawStats.value.animeWithSubtitle
   const totalWithoutSubtitle = rawStats.value.moviesWithoutSubtitle + rawStats.value.episodesWithoutSubtitle + rawStats.value.animeWithoutSubtitle
-  
+
   return {
     ...rawStats.value,
     totalWithSubtitle,
@@ -284,12 +274,6 @@ const stats = computed(() => {
 // Parallax style for welcome section
 const parallaxStyle = computed(() => ({
   transform: `translateY(${mousePos.y * 0.02}px)`
-}))
-
-// Black hole style
-const blackHoleStyle = computed(() => ({
-  left: `${blackHolePos.x}px`,
-  top: `${blackHolePos.y}px`
 }))
 
 // Particle style generator
@@ -313,8 +297,6 @@ function handleMouseMove(e) {
   const rect = dashboardRef.value.getBoundingClientRect()
   mousePos.x = e.clientX - rect.left
   mousePos.y = e.clientY - rect.top
-  blackHolePos.x = e.clientX - rect.left
-  blackHolePos.y = e.clientY - rect.top
 }
 
 function handleMouseLeave() {
@@ -336,9 +318,9 @@ function handleCardMouseMove(index, e) {
   const centerY = rect.height / 2
   const rotateX = (y - centerY) / 10
   const rotateY = (centerX - x) / 10
-  
+
   card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-4px)`
-  
+
   // Update glow position
   const glow = statGlowRefs[index]
   if (glow) {
@@ -352,7 +334,7 @@ function handleCardMouseLeave(index) {
   const cards = document.querySelectorAll('.stat-card')
   cards[index].style.transform = ''
   cards[index].classList.remove('hovered')
-  
+
   const glow = statGlowRefs[index]
   if (glow) {
     glow.style.opacity = '0'
@@ -362,7 +344,7 @@ function handleCardMouseLeave(index) {
 function handleActionHover(index, e) {
   const btn = e.currentTarget
   btn.classList.add('hovered')
-  
+
   // Create ripple effect
   const ripple = rippleRefs[index]
   if (ripple) {
@@ -390,7 +372,7 @@ onMounted(async () => {
     // Fetch stats
     const data = await store.fetchStats()
     rawStats.value = data
-    
+
     // Fetch recent activities
     await fetchActivities()
   } catch (error) {
@@ -407,7 +389,7 @@ async function fetchActivities() {
     activities.value = response.data || []
   } catch (error) {
     console.error('获取活动记录失败:', error)
-    // 静默失败，使用空数组
+    // 静默失败,使用空数组
     activities.value = []
   } finally {
     loadingActivities.value = false
@@ -445,27 +427,27 @@ async function handleScan() {
         }
       }
     )
-    
+
     ElMessage.info('正在扫描媒体库...')
     const result = await store.scanLibrary()
-    
+
     if (result && result.success === false) {
       ElMessage.error(result.message || '扫描失败')
       return
     }
-    
-    ElMessage.success('扫描完成！正在更新数据...')
-    
+
+    ElMessage.success('扫描完成!正在更新数据...')
+
     // 等待后台扫描完成
     await new Promise(resolve => setTimeout(resolve, 2000))
-    
+
     // 刷新统计数据
     const data = await store.fetchStats()
     rawStats.value = data
-    
+
     // 刷新活动记录
     await fetchActivities()
-    
+
     ElMessage.success('数据已更新')
   } catch (error) {
     if (error === 'cancel' || error === 'close' || error === '') {
@@ -564,63 +546,6 @@ function getStatusText(status) {
 }
 
 /* 黑洞效果 */
-.black-hole {
-  position: fixed;
-  width: 300px;
-  height: 300px;
-  pointer-events: none;
-  z-index: 1;
-  transform: translate(-50%, -50%);
-  transition: left 0.3s ease-out, top 0.3s ease-out;
-}
-
-.black-hole-core {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 60px;
-  height: 60px;
-  background: radial-gradient(circle, #000 0%, #000 60%, transparent 100%);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 30px 10px rgba(0, 0, 0, 0.8);
-}
-
-.black-hole-ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 120px;
-  height: 120px;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  background: linear-gradient(45deg, rgba(255, 107, 53, 0.3), transparent, rgba(88, 86, 214, 0.3)) border-box;
-  mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  animation: rotate-ring 3s linear infinite;
-}
-
-.black-hole-ring.ring-2 {
-  width: 180px;
-  height: 180px;
-  animation-duration: 5s;
-  animation-direction: reverse;
-  opacity: 0.6;
-}
-
-.black-hole-ring.ring-3 {
-  width: 240px;
-  height: 240px;
-  animation-duration: 7s;
-  opacity: 0.3;
-}
-
-@keyframes rotate-ring {
-  from { transform: translate(-50%, -50%) rotate(0deg); }
-  to { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
 /* 入场动画 */
 @keyframes fadeInUp {
   from {
@@ -1144,7 +1069,7 @@ function getStatusText(status) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .actions-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1154,11 +1079,11 @@ function getStatusText(status) {
   .welcome-title {
     font-size: 32px;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .actions-grid {
     grid-template-columns: 1fr;
   }

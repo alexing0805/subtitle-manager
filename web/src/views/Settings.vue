@@ -11,15 +11,6 @@
         <h3 class="section-title">基本设置</h3>
         
         <el-form :model="settings" label-position="top">
-          <el-form-item label="API Key（前端认证）">
-            <el-input
-              v-model="settings.apiKey"
-              placeholder="输入 API Key（需与后台设置一致）"
-              show-password
-            />
-            <div class="form-hint">保存在浏览器本地，不上传服务器；需与后台 API Key 一致</div>
-          </el-form-item>
-
           <el-form-item label="电影目录">
             <el-input
               v-model="settings.movieDir"
