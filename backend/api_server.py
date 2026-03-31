@@ -969,10 +969,10 @@ async def get_anime_art(show_id: int, preferred: str = "poster"):
 
 @app.get("/api/poster/anime/{show_id}/season/{season_number}")
 async def get_anime_season_poster(show_id: int, season_number: int):
-    """鑾峰彇鍔ㄦ极瀛ｆ捣鎶ュ浘鐗?"""
+    """获取动漫季度海报URL"""
     show = subtitle_manager.get_anime_show(show_id)
     if not show:
-        raise HTTPException(status_code=404, detail="鍔ㄦ极涓嶅瓨鍦?")
+        raise HTTPException(status_code=404, detail="动漫不存在")
 
     season = None
     for s in show.get('seasons', []):
@@ -981,11 +981,11 @@ async def get_anime_season_poster(show_id: int, season_number: int):
             break
 
     if not season:
-        raise HTTPException(status_code=404, detail="瀛ｄ笉瀛樺湪")
+        raise HTTPException(status_code=404, detail="季度不存在")
 
     poster_path = season.get('posterPath') or show.get('posterPath')
     if not poster_path or not os.path.exists(poster_path):
-        raise HTTPException(status_code=404, detail="娴锋姤涓嶅瓨鍦?")
+        raise HTTPException(status_code=404, detail="海报不存在")
 
     return FileResponse(poster_path)
 
