@@ -461,9 +461,10 @@ class SubtitleManager:
     
     def get_stats(self) -> dict:
         """获取统计信息"""
-        # 扫描电影和电视剧
+        # 扫描电影、电视剧和动漫
         movies = self.get_movies()
         tvshows = self.get_tvshows()
+        anime = self.get_anime()
         
         # 计算电影统计
         movies_with_subtitle = sum(1 for m in movies if m.get('hasSubtitle', False))
@@ -478,6 +479,16 @@ class SubtitleManager:
                     if episode.get('hasSubtitle', False):
                         episodes_with_subtitle += 1
         
+        # 计算动漫统计
+        anime_episodes = 0
+        anime_with_subtitle = 0
+        for show in anime:
+            for season in show.get('seasons', []):
+                for episode in season.get('episodes', []):
+                    anime_episodes += 1
+                    if episode.get('hasSubtitle', False):
+                        anime_with_subtitle += 1
+        
         return {
             'totalMovies': len(movies),
             'moviesWithSubtitle': movies_with_subtitle,
@@ -486,6 +497,9 @@ class SubtitleManager:
             'totalEpisodes': total_episodes,
             'episodesWithSubtitle': episodes_with_subtitle,
             'episodesWithoutSubtitle': total_episodes - episodes_with_subtitle,
+            'totalAnime': len(anime),
+            'animeWithSubtitle': anime_with_subtitle,
+            'animeWithoutSubtitle': anime_episodes - anime_with_subtitle,
             'recentDownloads': len([f for f in self.processed_files if f not in self.failed_files]),
             'pendingTasks': len(self.failed_files)
         }

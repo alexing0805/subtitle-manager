@@ -335,6 +335,9 @@ class Stats(BaseModel):
     totalEpisodes: int
     episodesWithSubtitle: int
     episodesWithoutSubtitle: int
+    totalAnime: int
+    animeWithSubtitle: int
+    animeWithoutSubtitle: int
     recentDownloads: int
     pendingTasks: int
 
