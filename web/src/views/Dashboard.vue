@@ -1,15 +1,15 @@
 <template>
-  <div class="dashboard" ref="dashboardRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
+  <div class="dashboard page-shell" ref="dashboardRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
     <!-- 鼠标跟随后景(黑洞效果) -->
-    <div class="mouse-glow" :style="mouseGlowStyle"></div>
+    <div class="mouse-glow blackhole" :style="mouseGlowStyle"></div>
 
     <!-- 背景粒子效果 -->
     <div class="bg-particles">
       <div
-        v-for="n in 30"
-        :key="n"
+        v-for="particle in particles"
+        :key="particle.id"
         class="particle"
-        :style="getParticleStyle(n)"
+        :style="particle.style"
       ></div>
     </div>
 
@@ -23,13 +23,11 @@
     <div class="stats-grid">
       <!-- 电影卡片 -->
       <div
-        class="stat-card infuse-card"
+        class="stat-card infuse-card infuse-tilt"
         @click="$router.push('/movies')"
-        @mouseenter="handleCardHover(0, $event)"
-        @mousemove="handleCardMouseMove(0, $event)"
-        @mouseleave="handleCardMouseLeave(0)"
+        @mousemove="handleTiltMove"
+        @mouseleave="handleTiltLeave"
       >
-        <div class="stat-glow" :ref="el => statGlowRefs[0] = el"></div>
         <div class="stat-icon" style="background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);">
           <el-icon><Film /></el-icon>
         </div>
@@ -48,13 +46,11 @@
 
       <!-- 电视剧卡片 -->
       <div
-        class="stat-card infuse-card"
+        class="stat-card infuse-card infuse-tilt"
         @click="$router.push('/tvshows')"
-        @mouseenter="handleCardHover(1, $event)"
-        @mousemove="handleCardMouseMove(1, $event)"
-        @mouseleave="handleCardMouseLeave(1)"
+        @mousemove="handleTiltMove"
+        @mouseleave="handleTiltLeave"
       >
-        <div class="stat-glow" :ref="el => statGlowRefs[1] = el"></div>
         <div class="stat-icon" style="background: linear-gradient(135deg, #5856d6 0%, #af52de 100%);">
           <el-icon><VideoCamera /></el-icon>
         </div>
@@ -73,13 +69,11 @@
 
       <!-- 动漫卡片 -->
       <div
-        class="stat-card infuse-card"
+        class="stat-card infuse-card infuse-tilt"
         @click="$router.push('/anime')"
-        @mouseenter="handleCardHover(2, $event)"
-        @mousemove="handleCardMouseMove(2, $event)"
-        @mouseleave="handleCardMouseLeave(2)"
+        @mousemove="handleTiltMove"
+        @mouseleave="handleTiltLeave"
       >
-        <div class="stat-glow" :ref="el => statGlowRefs[2] = el"></div>
         <div class="stat-icon" style="background: linear-gradient(135deg, #ff2d55 0%, #ff6b8a 100%);">
           <el-icon><Grid /></el-icon>
         </div>
@@ -98,12 +92,10 @@
 
       <!-- 总览卡片 -->
       <div
-        class="stat-card total-card infuse-card"
-        @mouseenter="handleCardHover(3, $event)"
-        @mousemove="handleCardMouseMove(3, $event)"
-        @mouseleave="handleCardMouseLeave(3)"
+        class="stat-card total-card infuse-card infuse-tilt"
+        @mousemove="handleTiltMove"
+        @mouseleave="handleTiltLeave"
       >
-        <div class="stat-glow" :ref="el => statGlowRefs[3] = el"></div>
         <div class="stat-icon" style="background: linear-gradient(135deg, #34c759 0%, #30d158 100%);">
           <el-icon><Check /></el-icon>
         </div>
@@ -127,36 +119,32 @@
     <div class="quick-actions">
       <h2 class="section-title">快捷操作</h2>
       <div class="actions-grid">
-        <button class="action-card infuse-card" @click="handleScan" @mouseenter="handleActionHover(0, $event)" @mouseleave="handleActionLeave">
+        <button class="action-card infuse-card infuse-tilt infuse-ripple-target" @click="triggerRipple($event); handleScan()" @mousemove="handleTiltMove" @mouseleave="handleTiltLeave">
           <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);">
             <el-icon class="action-icon"><Refresh /></el-icon>
           </div>
           <span class="action-text">扫描库</span>
-          <div class="action-ripple" :ref="el => rippleRefs[0] = el"></div>
         </button>
 
-        <button class="action-card infuse-card" @click="$router.push('/batch-upload')" @mouseenter="handleActionHover(1, $event)" @mouseleave="handleActionLeave">
+        <button class="action-card infuse-card infuse-tilt infuse-ripple-target" @click="triggerRipple($event); $router.push('/batch-upload')" @mousemove="handleTiltMove" @mouseleave="handleTiltLeave">
           <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #5856d6 0%, #af52de 100%);">
             <el-icon class="action-icon"><Upload /></el-icon>
           </div>
           <span class="action-text">批量上传</span>
-          <div class="action-ripple" :ref="el => rippleRefs[1] = el"></div>
         </button>
 
-        <button class="action-card infuse-card" @click="handleAutoDownload" @mouseenter="handleActionHover(2, $event)" @mouseleave="handleActionLeave">
+        <button class="action-card infuse-card infuse-tilt infuse-ripple-target" @click="triggerRipple($event); handleAutoDownload()" @mousemove="handleTiltMove" @mouseleave="handleTiltLeave">
           <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #34c759 0%, #30d158 100%);">
             <el-icon class="action-icon"><Download /></el-icon>
           </div>
           <span class="action-text">自动下载</span>
-          <div class="action-ripple" :ref="el => rippleRefs[2] = el"></div>
         </button>
 
-        <button class="action-card infuse-card" @click="$router.push('/settings')" @mouseenter="handleActionHover(3, $event)" @mouseleave="handleActionLeave">
+        <button class="action-card infuse-card infuse-tilt infuse-ripple-target" @click="triggerRipple($event); $router.push('/settings')" @mousemove="handleTiltMove" @mouseleave="handleTiltLeave">
           <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #0071e3 0%, #42a5f5 100%);">
             <el-icon class="action-icon"><Setting /></el-icon>
           </div>
           <span class="action-text">设置</span>
-          <div class="action-ripple" :ref="el => rippleRefs[3] = el"></div>
         </button>
       </div>
     </div>
@@ -206,7 +194,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -217,6 +205,8 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
 import axios from 'axios'
+import { useAmbientEffects } from '../composables/useAmbientEffects'
+import { buildScanConfirmHtml, createScanDialogOptions } from '../utils/scanDialog'
 
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
@@ -238,9 +228,17 @@ api.interceptors.request.use(config => {
 const store = useSubtitleStore()
 
 // Refs
-const dashboardRef = ref(null)
-const statGlowRefs = reactive([null, null, null, null])
-const rippleRefs = reactive([null, null, null, null])
+const {
+  containerRef: dashboardRef,
+  particles,
+  parallaxStyle,
+  mouseGlowStyle,
+  handleMouseMove,
+  handleMouseLeave,
+  handleTiltMove,
+  handleTiltLeave,
+  triggerRipple
+} = useAmbientEffects({ particleCount: 30, parallaxFactor: 0.01 })
 
 // State
 const rawStats = ref({
@@ -260,8 +258,6 @@ const rawStats = ref({
 
 const activities = ref([])
 const loadingActivities = ref(false)
-const mousePos = reactive({ x: 0, y: 0 })
-
 // Computed
 const stats = computed(() => {
   const totalWithSubtitle = rawStats.value.moviesWithSubtitle + rawStats.value.episodesWithSubtitle + rawStats.value.animeWithSubtitle
@@ -273,109 +269,6 @@ const stats = computed(() => {
     totalWithoutSubtitle
   }
 })
-
-// Parallax style for welcome section
-const parallaxStyle = computed(() => ({
-  transform: `translate3d(${mousePos.x * 0.01}px, ${mousePos.y * 0.01}px, 0)`
-}))
-
-// 黑洞光圈样式
-const mouseGlowStyle = computed(() => ({
-  left: `${mousePos.x}px`,
-  top: `${mousePos.y}px`,
-  opacity: mousePos.x === 0 && mousePos.y === 0 ? 0 : 1
-}))
-
-// Particle style generator
-function getParticleStyle(n) {
-  const size = Math.random() * 5 + 1
-  const duration = Math.random() * 25 + 15
-  const delay = Math.random() * -15
-  return {
-    width: `${size}px`,
-    height: `${size}px`,
-    left: `${Math.random() * 100}%`,
-    top: `${Math.random() * 100}%`,
-    animationDuration: `${duration}s`,
-    animationDelay: `${delay}s`,
-    opacity: Math.random() * 0.4 + 0.1,
-    boxShadow: `0 0 ${size * 2}px var(--infuse-accent)`
-  }
-}
-
-// Mouse handlers
-function handleMouseMove(e) {
-  const rect = dashboardRef.value.getBoundingClientRect()
-  mousePos.x = e.clientX - rect.left
-  mousePos.y = e.clientY - rect.top
-}
-
-function handleMouseLeave() {
-  mousePos.x = 0
-  mousePos.y = 0
-}
-
-function handleCardHover(index, e) {
-  const card = e.currentTarget
-  card.classList.add('hovered')
-}
-
-function handleCardMouseMove(index, e) {
-  const card = e.currentTarget
-  const rect = card.getBoundingClientRect()
-  const x = e.clientX - rect.left
-  const y = e.clientY - rect.top
-  const centerX = rect.width / 2
-  const centerY = rect.height / 2
-  const rotateX = (y - centerY) / 10
-  const rotateY = (centerX - x) / 10
-
-  card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-4px)`
-
-  // Update glow position
-  const glow = statGlowRefs[index]
-  if (glow) {
-    glow.style.left = `${x}px`
-    glow.style.top = `${y}px`
-    glow.style.opacity = '1'
-  }
-}
-
-function handleCardMouseLeave(index) {
-  const cards = document.querySelectorAll('.stat-card')
-  cards[index].style.transform = ''
-  cards[index].classList.remove('hovered')
-
-  const glow = statGlowRefs[index]
-  if (glow) {
-    glow.style.opacity = '0'
-  }
-}
-
-function handleActionHover(index, e) {
-  const btn = e.currentTarget
-  btn.classList.add('hovered')
-
-  // Create ripple effect
-  const ripple = rippleRefs[index]
-  if (ripple) {
-    const rect = btn.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    ripple.style.left = `${x}px`
-    ripple.style.top = `${y}px`
-    ripple.classList.add('active')
-  }
-}
-
-function handleActionLeave() {
-  document.querySelectorAll('.action-card').forEach(btn => {
-    btn.classList.remove('hovered')
-  })
-  document.querySelectorAll('.action-ripple').forEach(ripple => {
-    ripple.classList.remove('active')
-  })
-}
 
 // Fetch data
 onMounted(async () => {
@@ -410,43 +303,13 @@ async function fetchActivities() {
 async function handleScan() {
   try {
     await ElMessageBox.confirm(
-      `<div class="scan-confirm-content">
-        <div class="scan-icon-pulse">
-          <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
-          </svg>
-        </div>
-        <h3>确认全盘扫描</h3>
-        <p>系统将深度扫描所有媒体库目录, 自动关联缺失的字幕文件。大规模媒体库可能需要几分钟时间。</p>
-        <div class="scan-status-list">
-          <div class="status-item"><span class="dot"></span> 检索文件变动</div>
-          <div class="status-item"><span class="dot"></span> 匹配TMDB元数据</div>
-          <div class="status-item"><span class="dot"></span> 更新本地数据库</div>
-        </div>
-      </div>`,
+      buildScanConfirmHtml({
+        title: '确认全盘扫描',
+        description: '系统将深度扫描所有媒体库目录，自动关联缺失字幕并刷新统计面板。',
+        steps: ['检索文件变动', '匹配 TMDB 元数据', '更新本地数据库']
+      }),
       '',
-      {
-        confirmButtonText: '开启深度扫描',
-        cancelButtonText: '暂不执行',
-        dangerouslyUseHTMLString: true,
-        confirmButtonClass: 'infuse-btn-scan-main',
-        cancelButtonClass: 'infuse-btn-cancel-main',
-        showClose: false,
-        center: true,
-        customClass: 'infuse-message-box scan-modal',
-        beforeClose: (action, instance, done) => {
-          if (action === 'confirm') {
-            instance.confirmButtonLoading = true
-            instance.confirmButtonText = '扫描任务已提交...'
-            instance.showCancelButton = false
-            setTimeout(() => {
-              done()
-            }, 800)
-            return
-          }
-          done()
-        }
-      }
+      { ...createScanDialogOptions('扫描任务已提交...'), confirmButtonText: '开启深度扫描', cancelButtonText: '暂不执行' }
     )
 
     ElMessage({

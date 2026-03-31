@@ -1,17 +1,19 @@
 <template>
-  <div class="tv-shows" ref="containerRef" @mousemove="handleMouseMove">
+  <div class="anime page-shell" ref="containerRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
+    <div class="mouse-glow" :style="mouseGlowStyle"></div>
+
     <!-- 背景粒子效果 -->
     <div class="bg-particles">
       <div
-        v-for="n in 20"
-        :key="n"
+        v-for="particle in particles"
+        :key="particle.id"
         class="particle"
-        :style="getParticleStyle(n)"
+        :style="particle.style"
       ></div>
     </div>
 
     <!-- 页面标题 -->
-    <header class="page-header">
+    <header class="page-header" :style="parallaxStyle">
       <h1 class="page-title">动漫</h1>
       <p class="page-subtitle">管理动漫字幕</p>
     </header>
@@ -43,8 +45,10 @@
       <div
         v-for="show in filteredShows"
         :key="show.id"
-        class="show-card infuse-card"
+        class="show-card infuse-card infuse-tilt"
         @click="handleShowClick(show)"
+        @mousemove="handleTiltMove"
+        @mouseleave="handleTiltLeave"
       >
         <div class="show-poster">
           <img
@@ -307,6 +311,8 @@ import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Upload, Monitor, Check, Setting, InfoFilled, Document, Download } from '@element-plus/icons-vue'
 import axios from 'axios'
+import { useAmbientEffects } from '../composables/useAmbientEffects'
+import { buildScanConfirmHtml, createScanDialogOptions } from '../utils/scanDialog'
 
 const api = axios.create({
   baseURL: '/api',
@@ -318,34 +324,16 @@ const store = useSubtitleStore()
 const searchQuery = ref('')
 const shows = ref([])
 const isMobileView = ref(false)
-const containerRef = ref(null)
-const mousePos = ref({ x: 0, y: 0 })
-
-// Particle style generator
-function getParticleStyle(n) {
-  const size = Math.random() * 4 + 1
-  const duration = Math.random() * 20 + 10
-  const delay = Math.random() * -20
-  return {
-    width: `${size}px`,
-    height: `${size}px`,
-    left: `${Math.random() * 100}%`,
-    top: `${Math.random() * 100}%`,
-    animationDuration: `${duration}s`,
-    animationDelay: `${delay}s`,
-    opacity: Math.random() * 0.3 + 0.1,
-    boxShadow: `0 0 ${size * 2}px var(--infuse-accent)`
-  }
-}
-
-function handleMouseMove(e) {
-  if (!containerRef.value) return
-  const rect = containerRef.value.getBoundingClientRect()
-  mousePos.value = {
-    x: e.clientX - rect.left,
-    y: e.clientY - rect.top
-  }
-}
+const {
+  containerRef,
+  particles,
+  parallaxStyle,
+  mouseGlowStyle,
+  handleMouseMove,
+  handleMouseLeave,
+  handleTiltMove,
+  handleTiltLeave
+} = useAmbientEffects({ particleCount: 20, parallaxFactor: 0.005 })
 
 // 详情对话框
 const showDetailVisible = ref(false)
@@ -537,37 +525,13 @@ async function handleDownload(result) {
 async function handleScan() {
   try {
     await ElMessageBox.confirm(
-      `<div class="scan-confirm-content">
-        <div class="scan-icon-pulse">
-          <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-          </svg>
-        </div>
-        <h3>确认扫描动漫库</h3>
-        <p>即将开始同步动漫媒体库。系统将扫描新增剧集并查找缺失字幕。</p>
-      </div>`,
+      buildScanConfirmHtml({
+        title: '确认扫描动漫库',
+        description: '系统将刷新动漫目录、重建分季信息，并重新匹配缺失字幕。',
+        steps: ['扫描动漫目录', '重建分季信息', '更新字幕状态']
+      }),
       '',
-      {
-        confirmButtonText: '开始扫描',
-        cancelButtonText: '取消',
-        dangerouslyUseHTMLString: true,
-        confirmButtonClass: 'infuse-btn-scan-main',
-        cancelButtonClass: 'infuse-btn-cancel-main',
-        showClose: false,
-        center: true,
-        customClass: 'infuse-message-box scan-modal',
-        beforeClose: (action, instance, done) => {
-          if (action === 'confirm') {
-            instance.confirmButtonLoading = true
-            instance.confirmButtonText = '扫描中...'
-            setTimeout(() => done(), 800)
-            return
-          }
-          done()
-        }
-      }
+      createScanDialogOptions('扫描中...')
     )
     
     ElMessage.info({ message: '正在启动动漫库扫描任务...', customClass: 'infuse-message' })
@@ -667,7 +631,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 </script>
 
 <style scoped>
-.tv-shows {
+.anime {
   max-width: 1400px;
   position: relative;
 }

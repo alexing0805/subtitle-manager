@@ -232,10 +232,11 @@ body::before {
   border-radius: var(--infuse-radius-lg);
   border: 1px solid var(--infuse-border);
   overflow: hidden;
-  transition: all var(--infuse-transition-normal);
+  transition: transform var(--infuse-transition-normal), box-shadow var(--infuse-transition-normal), border-color var(--infuse-transition-normal), background var(--infuse-transition-normal);
   backdrop-filter: blur(22px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--infuse-shadow-sm);
   position: relative;
+  will-change: transform;
 }
 
 .infuse-card::before {
@@ -477,6 +478,20 @@ body::before {
   }
   to {
     transform: translateX(28%) skewY(-18deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

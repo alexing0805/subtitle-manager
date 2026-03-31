@@ -1,15 +1,15 @@
 <template>
-  <div class="movies" ref="containerRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
+  <div class="movies page-shell" ref="containerRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
     <!-- 鼠标跟随后景 -->
     <div class="mouse-glow" :style="mouseGlowStyle"></div>
 
     <!-- 背景粒子效果 -->
     <div class="bg-particles">
       <div
-        v-for="n in 25"
-        :key="n"
+        v-for="particle in particles"
+        :key="particle.id"
         class="particle"
-        :style="getParticleStyle(n)"
+        :style="particle.style"
       ></div>
     </div>
 
@@ -47,10 +47,10 @@
       <div
         v-for="movie in filteredMovies"
         :key="movie.id"
-        class="movie-card infuse-card"
+        class="movie-card infuse-card infuse-tilt"
         @click="handleMovieClick(movie)"
-        @mousemove="handleCardMouseMove"
-        @mouseleave="handleCardMouseLeave"
+        @mousemove="handleTiltMove"
+        @mouseleave="handleTiltLeave"
       >
         <div class="movie-poster">
           <img
@@ -251,11 +251,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Film, Check, Download, Document, Delete } from '@element-plus/icons-vue'
 import axios from 'axios'
+import { useAmbientEffects } from '../composables/useAmbientEffects'
+import { buildScanConfirmHtml, createScanDialogOptions } from '../utils/scanDialog'
 
 const api = axios.create({
   baseURL: '/api',
@@ -275,72 +277,18 @@ const downloading = ref(null)
 const loadingSubtitles = ref(false)
 const deletingSubtitle = ref(null)
 const isMobileView = ref(false)
-const containerRef = ref(null)
-const mousePos = reactive({ x: 0, y: 0 })
+const {
+  containerRef,
+  particles,
+  parallaxStyle,
+  mouseGlowStyle,
+  handleMouseMove,
+  handleMouseLeave,
+  handleTiltMove,
+  handleTiltLeave
+} = useAmbientEffects({ particleCount: 25, parallaxFactor: 0.005 })
 
 const movies = ref([])
-
-// Parallax style for header
-const parallaxStyle = computed(() => ({
-  transform: `translate3d(${mousePos.x * 0.005}px, ${mousePos.y * 0.005}px, 0)`
-}))
-
-// Mouse glow style
-const mouseGlowStyle = computed(() => ({
-  left: `${mousePos.x}px`,
-  top: `${mousePos.y}px`,
-  opacity: mousePos.x === 0 && mousePos.y === 0 ? 0 : 1
-}))
-
-// Particle style generator
-function getParticleStyle(n) {
-  const size = Math.random() * 5 + 1
-  const duration = Math.random() * 25 + 15
-  const delay = Math.random() * -15
-  return {
-    width: `${size}px`,
-    height: `${size}px`,
-    left: `${Math.random() * 100}%`,
-    top: `${Math.random() * 100}%`,
-    animationDuration: `${duration}s`,
-    animationDelay: `${delay}s`,
-    opacity: Math.random() * 0.4 + 0.1,
-    boxShadow: `0 0 ${size * 2}px var(--infuse-accent)`
-  }
-}
-
-// Mouse handlers
-function handleMouseMove(e) {
-  if (!containerRef.value) return
-  const rect = containerRef.value.getBoundingClientRect()
-  mousePos.x = e.clientX - rect.left
-  mousePos.y = e.clientY - rect.top
-}
-
-function handleMouseLeave() {
-  mousePos.x = 0
-  mousePos.y = 0
-}
-
-function handleCardMouseMove(e) {
-  const card = e.currentTarget
-  const rect = card.getBoundingClientRect()
-  const x = e.clientX - rect.left
-  const y = e.clientY - rect.top
-  const centerX = rect.width / 2
-  const centerY = rect.height / 2
-  const rotateX = (y - centerY) / 12
-  const rotateY = (centerX - x) / 12
-
-  card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-8px)`
-  card.style.zIndex = '10'
-}
-
-function handleCardMouseLeave(e) {
-  const card = e.currentTarget
-  card.style.transform = ''
-  card.style.zIndex = ''
-}
 
 const filteredMovies = computed(() => {
   let result = movies.value
@@ -504,37 +452,13 @@ async function handleDownload(result) {
 async function handleScan() {
   try {
     await ElMessageBox.confirm(
-      `<div class="scan-confirm-content">
-        <div class="scan-icon-pulse">
-          <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-          </svg>
-        </div>
-        <h3>确认扫描电影库</h3>
-        <p>即将开始同步电影媒体库。系统将扫描新增电影并查找缺失字幕。</p>
-      </div>`,
+      buildScanConfirmHtml({
+        title: '确认扫描电影库',
+        description: '系统会重新遍历电影目录，同步新增影片并补齐缺失字幕状态。',
+        steps: ['扫描电影文件', '更新媒体元数据', '刷新字幕状态']
+      }),
       '',
-      {
-        confirmButtonText: '开始扫描',
-        cancelButtonText: '取消',
-        dangerouslyUseHTMLString: true,
-        confirmButtonClass: 'infuse-btn-scan-main',
-        cancelButtonClass: 'infuse-btn-cancel-main',
-        showClose: false,
-        center: true,
-        customClass: 'infuse-message-box scan-modal',
-        beforeClose: (action, instance, done) => {
-          if (action === 'confirm') {
-            instance.confirmButtonLoading = true
-            instance.confirmButtonText = '扫描中...'
-            setTimeout(() => done(), 800)
-            return
-          }
-          done()
-        }
-      }
+      createScanDialogOptions('扫描中...')
     )
     
     ElMessage.info({ message: '正在扫描电影库...', customClass: 'infuse-message' })
