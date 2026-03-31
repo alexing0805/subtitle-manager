@@ -121,7 +121,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useSubtitleStore } from '../stores/subtitle'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Film, Check, Warning, Loading, Search, Upload, Download, Setting, InfoFilled, VideoCamera
 } from '@element-plus/icons-vue'
@@ -187,13 +187,26 @@ onMounted(async () => {
 
 async function handleScan() {
   try {
+    await ElMessageBox.confirm(
+      '即将扫描所有媒体库文件，查找缺失的字幕。此操作可能需要较长时间，是否继续？',
+      '确认全盘扫描',
+      {
+        confirmButtonText: '开始扫描',
+        cancelButtonText: '取消',
+        type: 'info',
+        confirmButtonClass: 'infuse-btn-primary',
+      }
+    )
     ElMessage.info('开始扫描库...')
     await store.scanLibrary()
     ElMessage.success('扫描完成')
     const data = await store.fetchStats()
     rawStats.value = data
   } catch (error) {
-    ElMessage.error('扫描失败')
+    // 用户取消时不报错
+    if (error !== 'cancel') {
+      ElMessage.error('扫描失败')
+    }
   }
 }
 
