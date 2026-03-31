@@ -1,5 +1,15 @@
 <template>
-  <div class="tv-shows">
+  <div class="tv-shows" ref="containerRef" @mousemove="handleMouseMove">
+    <!-- 背景粒子效果 -->
+    <div class="bg-particles">
+      <div
+        v-for="n in 20"
+        :key="n"
+        class="particle"
+        :style="getParticleStyle(n)"
+      ></div>
+    </div>
+
     <!-- 页面标题 -->
     <header class="page-header">
       <h1 class="page-title">动漫</h1>
@@ -308,6 +318,34 @@ const store = useSubtitleStore()
 const searchQuery = ref('')
 const shows = ref([])
 const isMobileView = ref(false)
+const containerRef = ref(null)
+const mousePos = ref({ x: 0, y: 0 })
+
+// Particle style generator
+function getParticleStyle(n) {
+  const size = Math.random() * 4 + 1
+  const duration = Math.random() * 20 + 10
+  const delay = Math.random() * -20
+  return {
+    width: `${size}px`,
+    height: `${size}px`,
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    animationDuration: `${duration}s`,
+    animationDelay: `${delay}s`,
+    opacity: Math.random() * 0.3 + 0.1,
+    boxShadow: `0 0 ${size * 2}px var(--infuse-accent)`
+  }
+}
+
+function handleMouseMove(e) {
+  if (!containerRef.value) return
+  const rect = containerRef.value.getBoundingClientRect()
+  mousePos.value = {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  }
+}
 
 // 详情对话框
 const showDetailVisible = ref(false)
@@ -499,22 +537,32 @@ async function handleDownload(result) {
 async function handleScan() {
   try {
     await ElMessageBox.confirm(
-      '即将扫描动漫库，查找缺失的字幕文件。此操作可能需要几分钟时间，是否继续？',
-      '确认扫描',
+      `<div class="scan-confirm-content">
+        <div class="scan-icon-pulse">
+          <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </div>
+        <h3>确认扫描动漫库</h3>
+        <p>即将开始同步动漫媒体库。系统将扫描新增剧集并查找缺失字幕。</p>
+      </div>`,
+      '',
       {
         confirmButtonText: '开始扫描',
         cancelButtonText: '取消',
-        type: 'info',
-        confirmButtonClass: 'infuse-btn-primary scan-confirm-btn',
-        cancelButtonClass: 'infuse-btn-cancel',
+        dangerouslyUseHTMLString: true,
+        confirmButtonClass: 'infuse-btn-scan-main',
+        cancelButtonClass: 'infuse-btn-cancel-main',
         showClose: false,
-        closeOnClickModal: false,
-        closeOnPressEscape: false,
+        center: true,
+        customClass: 'infuse-message-box scan-modal',
         beforeClose: (action, instance, done) => {
           if (action === 'confirm') {
             instance.confirmButtonLoading = true
             instance.confirmButtonText = '扫描中...'
-            // 禁止关闭
+            setTimeout(() => done(), 800)
             return
           }
           done()
@@ -522,31 +570,25 @@ async function handleScan() {
       }
     )
     
-    ElMessage.info('正在扫描动漫库...')
+    ElMessage.info({ message: '正在启动动漫库扫描任务...', customClass: 'infuse-message' })
     const result = await store.scanLibrary()
     
     if (result && result.success === false) {
-      ElMessage.error(result.message || '扫描失败')
-      return
+      throw new Error(result.message || '扫描任务提交失败')
     }
     
-    ElMessage.success('扫描完成！正在刷新列表...')
+    ElMessage.success({ message: '扫描任务已成功提交, 正在刷新数据...', customClass: 'infuse-message' })
     
-    // 等待一下让后台扫描完成
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    // 刷新列表
-    await store.fetchAnime()
-    shows.value = store.anime
-    
-    ElMessage.success('列表已更新')
+    setTimeout(async () => {
+      await store.fetchAnime()
+      shows.value = store.anime
+      ElMessage.success({ message: '动漫库数据已同步更新', customClass: 'infuse-message' })
+    }, 3000)
+
   } catch (error) {
-    // 用户取消时 error 为 'cancel' 或 'close'
-    if (error === 'cancel' || error === 'close') {
-      return
-    }
-    console.error('扫描失败:', error)
-    ElMessage.error('扫描失败: ' + (error.message || '未知错误'))
+    if (error === 'cancel' || error === 'close' || error === '') return
+    console.error('Scan Error:', error)
+    ElMessage.error({ message: '扫描失败: ' + (error.message || '未知错误'), customClass: 'infuse-message' })
   }
 }
 
@@ -627,6 +669,36 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 <style scoped>
 .tv-shows {
   max-width: 1400px;
+  position: relative;
+}
+
+/* 背景粒子效果 */
+.bg-particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  background: var(--infuse-accent);
+  border-radius: 50%;
+  animation: float-particle linear infinite;
+}
+
+@keyframes float-particle {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% {
+    transform: translateY(-100vh) scale(0.5);
+    opacity: 0;
+  }
 }
 
 /* 页面标题 */

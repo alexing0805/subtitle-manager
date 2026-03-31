@@ -1,9 +1,12 @@
 <template>
   <div class="dashboard" ref="dashboardRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
+    <!-- 鼠标跟随后景(黑洞效果) -->
+    <div class="mouse-glow" :style="mouseGlowStyle"></div>
+
     <!-- 背景粒子效果 -->
     <div class="bg-particles">
       <div
-        v-for="n in 20"
+        v-for="n in 30"
         :key="n"
         class="particle"
         :style="getParticleStyle(n)"
@@ -273,14 +276,21 @@ const stats = computed(() => {
 
 // Parallax style for welcome section
 const parallaxStyle = computed(() => ({
-  transform: `translateY(${mousePos.y * 0.02}px)`
+  transform: `translate3d(${mousePos.x * 0.01}px, ${mousePos.y * 0.01}px, 0)`
+}))
+
+// 黑洞光圈样式
+const mouseGlowStyle = computed(() => ({
+  left: `${mousePos.x}px`,
+  top: `${mousePos.y}px`,
+  opacity: mousePos.x === 0 && mousePos.y === 0 ? 0 : 1
 }))
 
 // Particle style generator
 function getParticleStyle(n) {
-  const size = Math.random() * 4 + 2
-  const duration = Math.random() * 20 + 15
-  const delay = Math.random() * 10
+  const size = Math.random() * 5 + 1
+  const duration = Math.random() * 25 + 15
+  const delay = Math.random() * -15
   return {
     width: `${size}px`,
     height: `${size}px`,
@@ -288,7 +298,8 @@ function getParticleStyle(n) {
     top: `${Math.random() * 100}%`,
     animationDuration: `${duration}s`,
     animationDelay: `${delay}s`,
-    opacity: Math.random() * 0.5 + 0.1
+    opacity: Math.random() * 0.4 + 0.1,
+    boxShadow: `0 0 ${size * 2}px var(--infuse-accent)`
   }
 }
 
@@ -400,27 +411,37 @@ async function handleScan() {
   try {
     await ElMessageBox.confirm(
       `<div class="scan-confirm-content">
-        <p>即将扫描所有媒体库文件</p>
-        <p class="scan-hint">查找缺失的字幕文件</p>
+        <div class="scan-icon-pulse">
+          <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
+          </svg>
+        </div>
+        <h3>确认全盘扫描</h3>
+        <p>系统将深度扫描所有媒体库目录, 自动关联缺失的字幕文件。大规模媒体库可能需要几分钟时间。</p>
+        <div class="scan-status-list">
+          <div class="status-item"><span class="dot"></span> 检索文件变动</div>
+          <div class="status-item"><span class="dot"></span> 匹配TMDB元数据</div>
+          <div class="status-item"><span class="dot"></span> 更新本地数据库</div>
+        </div>
       </div>`,
-      '确认全盘扫描',
+      '',
       {
-        confirmButtonText: '开始扫描',
-        cancelButtonText: '取消',
-        type: 'info',
+        confirmButtonText: '开启深度扫描',
+        cancelButtonText: '暂不执行',
         dangerouslyUseHTMLString: true,
-        confirmButtonClass: 'infuse-btn-primary scan-confirm-btn',
-        cancelButtonClass: 'infuse-btn-cancel',
+        confirmButtonClass: 'infuse-btn-scan-main',
+        cancelButtonClass: 'infuse-btn-cancel-main',
         showClose: false,
-        closeOnClickModal: false,
-        closeOnPressEscape: false,
+        center: true,
+        customClass: 'infuse-message-box scan-modal',
         beforeClose: (action, instance, done) => {
           if (action === 'confirm') {
             instance.confirmButtonLoading = true
-            instance.confirmButtonText = '扫描中...'
-            instance.cancelButtonText = ''
-            instance.showClose = false
-            // 返回不关闭
+            instance.confirmButtonText = '扫描任务已提交...'
+            instance.showCancelButton = false
+            setTimeout(() => {
+              done()
+            }, 800)
             return
           }
           done()
@@ -428,33 +449,48 @@ async function handleScan() {
       }
     )
 
-    ElMessage.info('正在扫描媒体库...')
+    ElMessage({
+      message: '扫描进程已在后台启动, 请稍后查看更新',
+      type: 'info',
+      duration: 5000,
+      customClass: 'infuse-message'
+    })
+    
     const result = await store.scanLibrary()
 
     if (result && result.success === false) {
-      ElMessage.error(result.message || '扫描失败')
-      return
+      throw new Error(result.message || '服务器内部扫描任务调度失败')
     }
 
-    ElMessage.success('扫描完成!正在更新数据...')
+    // 等待后台扫描并更新UI状态
+    setTimeout(async () => {
+      const data = await store.fetchStats()
+      rawStats.value = data
+      await fetchActivities()
+      ElMessage.success({
+        message: '媒体库扫描同步完成, 数据已更新',
+        customClass: 'infuse-message'
+      })
+    }, 3000)
 
-    // 等待后台扫描完成
-    await new Promise(resolve => setTimeout(resolve, 2000))
-
-    // 刷新统计数据
-    const data = await store.fetchStats()
-    rawStats.value = data
-
-    // 刷新活动记录
-    await fetchActivities()
-
-    ElMessage.success('数据已更新')
   } catch (error) {
-    if (error === 'cancel' || error === 'close' || error === '') {
-      return
-    }
-    console.error('扫描失败:', error)
-    ElMessage.error('扫描失败: ' + (error.message || '未知错误'))
+    if (error === 'cancel' || error === 'close' || error === '') return
+    
+    console.error('Scan Error:', error)
+    ElMessageBox.alert(
+      `<div class="error-msg-content">
+        <p>扫描过程遇到异常中止:</p>
+        <div class="error-detail">${error.message || '网络连接超时或远程服务未响应'}</div>
+        <p class="error-hint">请检查媒体目录权限或重试</p>
+      </div>`,
+      '扫描异常',
+      {
+        confirmButtonText: '知道了',
+        type: 'error',
+        dangerouslyUseHTMLString: true,
+        customClass: 'infuse-message-box error-modal'
+      }
+    )
   }
 }
 
@@ -511,6 +547,20 @@ function getStatusText(status) {
   padding: 20px;
 }
 
+/* 黑洞效果 */
+.mouse-glow {
+  position: fixed;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(34, 246, 255, 0.08) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  transition: opacity 1s ease;
+  filter: blur(40px);
+}
+
 /* 背景粒子效果 */
 .bg-particles {
   position: fixed;
@@ -525,12 +575,11 @@ function getStatusText(status) {
   background: var(--infuse-accent);
   border-radius: 50%;
   animation: float-particle linear infinite;
-  box-shadow: 0 0 10px var(--infuse-accent);
 }
 
 @keyframes float-particle {
   0% {
-    transform: translateY(0) rotate(0deg);
+    transform: translateY(0) scale(1);
     opacity: 0;
   }
   10% {
@@ -540,153 +589,147 @@ function getStatusText(status) {
     opacity: 1;
   }
   100% {
-    transform: translateY(-100vh) rotate(720deg);
+    transform: translateY(-100vh) scale(0.5);
     opacity: 0;
   }
 }
 
-/* 黑洞效果 */
 /* 入场动画 */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(30px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 .dashboard > * {
   position: relative;
   z-index: 2;
-  animation: fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.welcome-section { animation-delay: 0.05s; }
-.stats-grid { animation-delay: 0.1s; }
-.quick-actions { animation-delay: 0.15s; }
-.recent-activity { animation-delay: 0.2s; }
+.welcome-section { animation-delay: 0.1s; }
+.stats-grid { animation-delay: 0.2s; }
+.quick-actions { animation-delay: 0.3s; }
+.recent-activity { animation-delay: 0.4s; }
 
 /* 欢迎区域 */
 .welcome-section {
-  margin-bottom: 40px;
+  margin-bottom: 50px;
+  padding-left: 10px;
 }
 
 .welcome-title {
-  font-size: 48px;
+  font-size: 56px;
   font-weight: 900;
   background: linear-gradient(135deg, #fff 0%, #77f7ff 42%, #ff8be9 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin-bottom: 8px;
-  letter-spacing: -0.02em;
-  text-shadow: 0 0 40px rgba(119, 247, 255, 0.3);
+  margin-bottom: 12px;
+  letter-spacing: -0.04em;
+  filter: drop-shadow(0 0 20px rgba(34, 246, 255, 0.3));
 }
 
 .welcome-subtitle {
-  font-size: 18px;
+  font-size: 20px;
   color: var(--infuse-text-secondary);
   font-weight: 400;
+  opacity: 0.85;
 }
 
-/* Infuse 卡片样式 */
+/* Infuse 卡片增强 */
 .infuse-card {
-  background: var(--infuse-bg-card);
+  background: rgba(10, 16, 38, 0.65);
   border-radius: var(--infuse-radius-lg);
-  border: 1px solid var(--infuse-border);
+  border: 1px solid rgba(119, 247, 255, 0.12);
+  backdrop-filter: blur(24px);
   overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 }
 
 .infuse-card:hover {
-  border-color: var(--infuse-border-hover);
+  border-color: var(--infuse-accent);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), var(--infuse-shadow-glow);
 }
 
 /* 统计卡片 */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 48px;
+  gap: 24px;
+  margin-bottom: 50px;
 }
 
 .stat-card {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 24px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 28%), rgba(10, 16, 38, 0.76);
-  border: 1px solid rgba(119, 247, 255, 0.12);
+  gap: 20px;
+  padding: 28px;
   cursor: pointer;
   transform-style: preserve-3d;
-}
-
-.stat-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-}
-
-.stat-card.hovered::before {
-  opacity: 1;
+  will-change: transform;
 }
 
 .stat-glow {
   position: absolute;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, var(--infuse-accent) 0%, transparent 70%);
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(circle, rgba(34, 246, 255, 0.12) 0%, transparent 70%);
   border-radius: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.4s ease;
   filter: blur(30px);
+  z-index: 0;
 }
 
 .stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 16px;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 26px;
+  font-size: 28px;
   flex-shrink: 0;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  z-index: 1;
 }
 
-.stat-card.hovered .stat-icon {
-  transform: scale(1.1) rotate(5deg);
+.stat-card:hover .stat-icon {
+  transform: scale(1.15) translateZ(20px) rotate(-5deg);
 }
 
 .stat-content {
   flex: 1;
   min-width: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .stat-value {
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 800;
   line-height: 1;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  transition: transform 0.3s;
+  transition: transform 0.4s ease;
 }
 
-.stat-card.hovered .stat-value {
-  transform: scale(1.05);
+.stat-card:hover .stat-value {
+  transform: translateZ(10px);
 }
 
 .stat-label {
@@ -1089,87 +1132,140 @@ function getStatusText(status) {
   }
 }
 
-/* 扫描确认对话框样式 */
+/* 扫描确认对话框全局美化 */
+:deep(.infuse-message-box) {
+  background: rgba(10, 16, 38, 0.9) !important;
+  backdrop-filter: blur(40px) saturate(150%) !important;
+  border: 1px solid rgba(119, 247, 255, 0.2) !important;
+  border-radius: 28px !important;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6), 0 0 40px rgba(34, 246, 255, 0.1) !important;
+  padding: 40px !important;
+}
+
+:deep(.scan-modal) {
+  max-width: 480px !important;
+}
+
 :deep(.scan-confirm-content) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 
+:deep(.scan-icon-pulse) {
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(34, 246, 255, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--infuse-accent);
+  margin-bottom: 24px;
+  animation: modal-pulse 2s infinite;
+}
+
+@keyframes modal-pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 246, 255, 0.4); }
+  70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(34, 246, 255, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 246, 255, 0); }
+}
+
+:deep(.scan-confirm-content h3) {
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 12px;
+}
+
 :deep(.scan-confirm-content p) {
-  margin: 0;
   font-size: 15px;
-}
-
-:deep(.scan-hint) {
-  color: var(--infuse-text-muted);
-  font-size: 13px !important;
-  margin-top: 8px !important;
-}
-
-:deep(.scan-confirm-btn) {
-  background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%) !important;
-  border-color: #ff6b35 !important;
-  color: white !important;
-  font-weight: 600;
-  padding: 12px 32px !important;
-  border-radius: 10px;
-  transition: all 0.3s ease;
-}
-
-:deep(.scan-confirm-btn:hover) {
-  background: linear-gradient(135deg, #ff7b45 0%, #ff9555 100%) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
-}
-
-:deep(.scan-confirm-btn.el-button--primary.is-loading) {
-  background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%) !important;
-}
-
-:deep(.infuse-btn-cancel) {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: var(--infuse-text-secondary) !important;
-  border-radius: 10px;
-}
-
-:deep(.infuse-btn-cancel:hover) {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: var(--infuse-text-primary) !important;
-}
-
-/* 对话框背景美化 */
-:deep(.el-message-box) {
-  background: var(--infuse-bg-card) !important;
-  border: 1px solid var(--infuse-border) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
-  backdrop-filter: blur(30px) !important;
-  padding: 30px !important;
-}
-
-:deep(.el-message-box__title) {
-  color: var(--infuse-text-primary) !important;
-  font-weight: 700;
-  font-size: 18px;
-}
-
-:deep(.el-message-box__message) {
-  color: var(--infuse-text-secondary) !important;
+  color: var(--infuse-text-secondary);
   line-height: 1.6;
-  font-size: 14px;
+  margin-bottom: 24px;
 }
 
-:deep(.el-message-box__headerbtn .el-message-box__close) {
+:deep(.scan-status-list) {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 30px;
+}
+
+:deep(.status-item) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--infuse-text-tertiary);
+  margin-bottom: 8px;
+}
+
+:deep(.status-item:last-child) { margin-bottom: 0; }
+
+:deep(.status-item .dot) {
+  width: 6px;
+  height: 6px;
+  background: var(--infuse-accent);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--infuse-accent);
+}
+
+:deep(.infuse-btn-scan-main) {
+  background: linear-gradient(135deg, #22f6ff 0%, #00a8ff 100%) !important;
+  border: none !important;
+  color: #04111c !important;
+  font-weight: 800 !important;
+  font-size: 16px !important;
+  padding: 16px 40px !important;
+  border-radius: 100px !important;
+  transition: all 0.3s ease !important;
+  width: 100% !important;
+}
+
+:deep(.infuse-btn-scan-main:hover) {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 15px 30px rgba(34, 246, 255, 0.3) !important;
+}
+
+:deep(.infuse-btn-cancel-main) {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: var(--infuse-text-muted) !important;
-  font-size: 18px;
+  margin-top: 12px !important;
+  width: 100% !important;
 }
 
-:deep(.el-message-box__headerbtn:hover .el-message-box__close) {
-  color: var(--infuse-text-primary) !important;
+/* 错误弹窗美化 */
+:deep(.error-modal) {
+  border-color: rgba(255, 43, 214, 0.3) !important;
 }
 
-:deep(.el-message-box__content) {
-  padding: 20px 0 !important;
+:deep(.error-msg-content) {
+  text-align: center;
+}
+
+:deep(.error-detail) {
+  background: rgba(255, 43, 214, 0.05);
+  border: 1px solid rgba(255, 43, 214, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #ff2bd6;
+  margin: 16px 0;
+}
+
+/* 全局消息提醒美化 */
+:deep(.infuse-message) {
+  background: rgba(15, 24, 52, 0.8) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid var(--infuse-border) !important;
+  border-radius: 100px !important;
+  padding: 12px 24px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* 活动过渡动画 */
