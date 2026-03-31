@@ -1417,9 +1417,11 @@ class SubtitleManager:
                 score=subtitle_result.get('score', 0),
                 filename=subtitle_result.get('filename')
             )
+            logger.info(f"[download] SubHD direct download: id={subtitle_result.get('id')}, downloadUrl={subtitle_result.get('downloadUrl')}, filename={subtitle_result.get('filename')}")
             download_state = await source.download(result, subtitle_path)
             if download_state:
                 return await finalize_download()
+            logger.warning(f"[download] SubHD download failed (source returned False)")
             return {"success": False, "message": "下载失败"}
 
         video_info = NFOParser.get_video_info_with_nfo(video_path)
@@ -2032,8 +2034,10 @@ class SubtitleManager:
 
     async def download_episode_subtitle(self, episode_id: str, subtitle_id: str, source_name: str = None, subtitle_result: dict = None):
         """Download a subtitle for a TV episode."""
+        logger.info(f"[download_episode] episode_id={episode_id}, subtitle_id={subtitle_id}, source={source_name}")
         episode = self._find_episode_by_id(self.get_tvshows(), episode_id)
         if not episode:
+            logger.warning(f"[download_episode] 剧集不存在: episode_id={episode_id}")
             return {"success": False, "message": "剧集不存在"}
 
         return await self._download_subtitle_for_video(
@@ -2054,8 +2058,12 @@ class SubtitleManager:
 
     async def download_anime_subtitle(self, episode_id: str, subtitle_id: str, source_name: str = None, subtitle_result: dict = None):
         """Download a subtitle for an anime episode."""
-        episode = self._find_episode_by_id(self.get_anime(), episode_id)
+        anime_data = self.get_anime()
+        logger.info(f"[download_anime] episode_id={episode_id}, subtitle_id={subtitle_id}, source={source_name}")
+        logger.info(f"[download_anime] anime count={len(anime_data)}, episode_id type={type(episode_id)}")
+        episode = self._find_episode_by_id(anime_data, episode_id)
         if not episode:
+            logger.warning(f"[download_anime] 动漫不存在: episode_id={episode_id}")
             return {"success": False, "message": "动漫不存在"}
 
         return await self._download_subtitle_for_video(
