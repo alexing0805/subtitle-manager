@@ -435,12 +435,8 @@ async function handleDownload(result) {
     // 构建请求参数
     const requestData = {
       subtitle_id: result.id,
-      source_name: result.source
-    }
-    
-    // 对于 SubHD，传递完整的字幕信息（source 可能是 'SubHD' 或 'subhd'）
-    if (result.source && result.source.toLowerCase() === 'subhd') {
-      requestData.subtitle_result = {
+      source_name: result.source,
+      subtitle_result: {
         id: result.id,
         source: result.source,
         title: result.title,

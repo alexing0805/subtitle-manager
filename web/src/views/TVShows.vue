@@ -474,10 +474,8 @@ async function handleDownload(result) {
   try {
     const requestData = {
       subtitle_id: result.id,
-      source_name: result.source
-    }
-    if (result.source === 'SubHD') {
-      requestData.subtitle_result = {
+      source_name: result.source,
+      subtitle_result: {
         id: result.id,
         source: result.source,
         title: result.title,
