@@ -11,6 +11,15 @@
         <h3 class="section-title">基本设置</h3>
         
         <el-form :model="settings" label-position="top">
+          <el-form-item label="API Key（前端认证）">
+            <el-input
+              v-model="settings.apiKey"
+              placeholder="输入 API Key（需与后台设置一致）"
+              show-password
+            />
+            <div class="form-hint">保存在浏览器本地，不上传服务器；需与后台 API Key 一致</div>
+          </el-form-item>
+
           <el-form-item label="电影目录">
             <el-input
               v-model="settings.movieDir"
@@ -252,8 +261,16 @@ const settings = ref({
   logLevel: 'INFO',
   nastoolEnabled: false,
   nastoolWebhookToken: '',
-  nastoolPathMappings: ''
+  nastoolPathMappings: '',
+  apiKey: ''
 })
+
+function fetchWithApiKey(url, options = {}) {
+  const apiKey = localStorage.getItem('apiKey')
+  const headers = { 'Content-Type': 'application/json' }
+  if (apiKey) headers['X-API-Key'] = apiKey
+  return fetch(url, { ...options, headers: { ...headers, ...options.headers } })
+}
 
 // 计算 Webhook URL
 const nastoolWebhookUrl = computed(() => {
@@ -268,16 +285,28 @@ const nastoolWebhookUrl = computed(() => {
 onMounted(async () => {
   // 加载设置
   try {
-    const response = await fetch('/api/settings')
+    const response = await fetchWithApiKey('/api/settings')
     const data = await response.json()
     // 转换数组为逗号分隔的字符串
     settings.value = {
       ...data,
       subtitleSources: Array.isArray(data.subtitleSources) ? data.subtitleSources : data.subtitleSources.split(',')
     }
+    // apiKey 不从服务器返回，从本地存储读取
+    settings.value.apiKey = localStorage.getItem('apiKey') || ''
   } catch (error) {
-    console.error('加载设置失败:', error)
-    ElMessage.error('加载设置失败')
+    // 如果 401 且本地有缓存的 Key，先用本地数据填充
+    const cachedKey = localStorage.getItem('apiKey')
+    if (error.message.includes('401') && cachedKey) {
+      settings.value.apiKey = cachedKey
+      ElMessage.warning('已加载本地 API Key，请确认与后台设置一致')
+    } else if (error.message.includes('401')) {
+      ElMessage.warning('请先在下方填写 API Key 才能管理设置')
+      settings.value.apiKey = localStorage.getItem('apiKey') || ''
+    } else {
+      console.error('加载设置失败:', error)
+      ElMessage.error('加载设置失败')
+    }
   }
 })
 
@@ -288,16 +317,20 @@ async function handleSave() {
       settings.value.autoDownloadDelayMaxSeconds = settings.value.autoDownloadDelayMinSeconds
     }
 
-    const response = await fetch('/api/settings', {
+    const response = await fetchWithApiKey('/api/settings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings.value)
     })
-    
+
     if (!response.ok) {
       throw new Error('保存失败')
     }
-    
+
+    // API Key 保存到本地
+    if (settings.value.apiKey) {
+      localStorage.setItem('apiKey', settings.value.apiKey)
+    }
+
     ElMessage.success('设置已保存')
   } catch (error) {
     ElMessage.error('保存失败: ' + error.message)
@@ -327,11 +360,12 @@ function handleReset() {
     autoDownloadDelayMinSeconds: 6,
     autoDownloadDelayMaxSeconds: 14,
     autoDownload: true,
-  backupExisting: false,
-  logLevel: 'INFO',
-  nastoolEnabled: false,
-  nastoolWebhookToken: '',
-  nastoolPathMappings: ''
+    backupExisting: false,
+    logLevel: 'INFO',
+    nastoolEnabled: false,
+    nastoolWebhookToken: '',
+    nastoolPathMappings: '',
+    apiKey: localStorage.getItem('apiKey') || ''
   }
   ElMessage.info('设置已重置')
 }

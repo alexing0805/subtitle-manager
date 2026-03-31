@@ -10,6 +10,15 @@ const api = axios.create({
   timeout: 30000
 })
 
+// 所有请求自动带上 localStorage 中的 API Key
+api.interceptors.request.use(config => {
+  const apiKey = localStorage.getItem('apiKey')
+  if (apiKey) {
+    config.headers['X-API-Key'] = apiKey
+  }
+  return config
+})
+
 export const useSubtitleStore = defineStore('subtitle', () => {
   // State
   const movies = ref([])
