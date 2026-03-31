@@ -69,7 +69,6 @@ class Settings(BaseSettings):
     NASTOOL_ENABLED: bool = False  # 是否启用 NASTool 对接
     NASTOOL_WEBHOOK_TOKEN: Optional[str] = None  # Webhook 安全令牌（可选）
     NASTOOL_PATH_MAPPINGS: Optional[str] = None  # NASTool 路径映射（NASTool路径=容器路径）
-    API_KEY: Optional[str] = None  # API 认证密钥（设置后所有敏感接口需要 X-API-Key 请求头）
 
     # 字幕格式优先级配置（格式名称=加分值，格式之间逗号分隔）
     # 例如: "srt=0.08,ass=0.06,vtt=0.03,sup=-0.16"
@@ -180,7 +179,6 @@ class Config:
         self.NASTOOL_ENABLED = settings.NASTOOL_ENABLED
         self.NASTOOL_WEBHOOK_TOKEN = settings.NASTOOL_WEBHOOK_TOKEN
         self.NASTOOL_PATH_MAPPINGS = settings.NASTOOL_PATH_MAPPINGS
-        self.API_KEY = settings.API_KEY
 
     def get_watch_dirs(self) -> List[str]:
         """获取监控目录列表"""
