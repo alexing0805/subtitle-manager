@@ -1405,7 +1405,7 @@ class SubtitleManager:
                 result["warning"] = normalized["warning"]
             return result
 
-        if source_name.lower() == 'subhd' and subtitle_result:
+        if subtitle_result:
             from backend.subtitle_sources import SubtitleResult as SourceSubtitleResult
 
             result = SourceSubtitleResult(
@@ -1413,15 +1413,15 @@ class SubtitleManager:
                 source=subtitle_result['source'],
                 title=subtitle_result['title'],
                 language=subtitle_result['language'],
-                download_url=subtitle_result['downloadUrl'],
+                download_url=subtitle_result.get('downloadUrl'),
                 score=subtitle_result.get('score', 0),
                 filename=subtitle_result.get('filename')
             )
-            logger.info(f"[download] SubHD direct download: id={subtitle_result.get('id')}, downloadUrl={subtitle_result.get('downloadUrl')}, filename={subtitle_result.get('filename')}")
+            logger.info(f"[download] Direct download: source={subtitle_result.get('source')}, id={subtitle_result.get('id')}, downloadUrl={subtitle_result.get('downloadUrl')}")
             download_state = await source.download(result, subtitle_path)
             if download_state:
                 return await finalize_download()
-            logger.warning(f"[download] SubHD download failed (source returned False)")
+            logger.warning(f"[download] Direct download failed (source returned False)")
             return {"success": False, "message": "下载失败"}
 
         video_info = NFOParser.get_video_info_with_nfo(video_path)
