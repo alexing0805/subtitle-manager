@@ -3,7 +3,7 @@
 提供 RESTful API 供前端调用
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, BackgroundTasks, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -137,7 +137,20 @@ app.add_middleware(
 # 注册限流中间件
 app.middleware("http")(rate_limit_middleware)
 
-# 全局配置和字幕管理器实例
+# ==================== API Key 认证 ====================
+from fastapi import Header, HTTPException
+
+def verify_api_key(x_api_key: Optional[str] = Header(None)) -> str:
+    """验证 API Key。如果未配置 API_KEY 则跳过验证（向后兼容）。"""
+    configured_key = getattr(settings, 'API_KEY', None) or os.getenv('API_KEY', '')
+    if not configured_key:
+        # 未配置 API_KEY，跳过验证
+        return ''
+    if not x_api_key or x_api_key != configured_key:
+        raise HTTPException(status_code=401, detail='API Key 无效')
+    return x_api_key
+
+# ==================== 全局配置和字幕管理器实例
 config = Config()
 subtitle_manager = SubtitleManager()
 
@@ -299,7 +312,8 @@ class Settings(BaseModel):
     nastoolEnabled: bool = False
     nastoolWebhookToken: Optional[str] = None
     nastoolPathMappings: Optional[str] = None
-    
+    apiKey: Optional[str] = None
+
     @property
     def watchDirs(self) -> str:
         """兼容旧代码：返回逗号分隔的目录字符串"""
@@ -622,7 +636,7 @@ async def download_anime_subtitle(episode_id: str, request: DownloadSubtitleRequ
 
 # -------------------- 批量上传字幕 --------------------
 
-@app.post("/api/batch-upload-subtitles")
+@app.post("/api/batch-upload-subtitles", dependencies=[Depends(verify_api_key)])
 async def batch_upload_subtitles(
     showId: int = Form(...),
     seasonNumber: int = Form(...),
@@ -706,7 +720,7 @@ class DeleteSubtitleRequest(BaseModel):
     subtitlePath: str
 
 
-@app.post("/api/subtitles/delete")
+@app.post("/api/subtitles/delete", dependencies=[Depends(verify_api_key)])
 async def delete_subtitle(request: DeleteSubtitleRequest):
     """删除字幕文件"""
     try:
@@ -722,7 +736,7 @@ async def delete_subtitle(request: DeleteSubtitleRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/upload-subtitle")
+@app.post("/api/upload-subtitle", dependencies=[Depends(verify_api_key)])
 async def upload_single_subtitle(
     episodeId: str = Form(...),
     file: UploadFile = File(...)
@@ -738,7 +752,7 @@ async def upload_single_subtitle(
 
 # -------------------- 设置管理 --------------------
 
-@app.get("/api/settings", response_model=Settings)
+@app.get("/api/settings", response_model=Settings, dependencies=[Depends(verify_api_key)])
 async def get_settings():
     """获取设置"""
     try:
@@ -749,7 +763,7 @@ async def get_settings():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/settings")
+@app.post("/api/settings", dependencies=[Depends(verify_api_key)])
 async def update_settings(settings: Settings):
     """更新设置"""
     try:
@@ -762,7 +776,7 @@ async def update_settings(settings: Settings):
 
 # -------------------- 扫描任务 --------------------
 
-@app.post("/api/scan")
+@app.post("/api/scan", dependencies=[Depends(verify_api_key)])
 async def trigger_scan(background_tasks: BackgroundTasks):
     """触发扫描任务"""
     try:

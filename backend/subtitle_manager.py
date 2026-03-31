@@ -1864,7 +1864,8 @@ class SubtitleManager:
             'logLevel': settings.LOG_LEVEL,
             'nastoolEnabled': settings.NASTOOL_ENABLED,
             'nastoolWebhookToken': settings.NASTOOL_WEBHOOK_TOKEN or '',
-            'nastoolPathMappings': settings.NASTOOL_PATH_MAPPINGS or ''
+            'nastoolPathMappings': settings.NASTOOL_PATH_MAPPINGS or '',
+            'apiKey': settings.API_KEY or ''
         }
     
     def update_settings(self, settings_data: dict):
@@ -1907,6 +1908,7 @@ class SubtitleManager:
                 'LOG_LEVEL': settings_data.get('logLevel', 'INFO'),
                 'NASTOOL_ENABLED': 'true' if settings_data.get('nastoolEnabled', False) else 'false',
                 'NASTOOL_WEBHOOK_TOKEN': settings_data.get('nastoolWebhookToken', ''),
+                'API_KEY': settings_data.get('apiKey', ''),
                 'NASTOOL_PATH_MAPPINGS': settings_data.get('nastoolPathMappings', ''),
             }
             
@@ -1951,6 +1953,7 @@ class SubtitleManager:
             settings.NASTOOL_ENABLED = new_settings['NASTOOL_ENABLED'] == 'true'
             settings.NASTOOL_WEBHOOK_TOKEN = new_settings['NASTOOL_WEBHOOK_TOKEN'] or None
             settings.NASTOOL_PATH_MAPPINGS = new_settings['NASTOOL_PATH_MAPPINGS'] or None
+            settings.API_KEY = new_settings['API_KEY'] or None
 
             # 重新初始化 TMDB API
             tmdb_module.init_tmdb_api(settings.TMDB_API_KEY)
