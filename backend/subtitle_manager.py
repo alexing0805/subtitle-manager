@@ -1405,6 +1405,7 @@ class SubtitleManager:
                 result["warning"] = normalized["warning"]
             return result
 
+        logger.info(f"[_download] subtitle_result={subtitle_result}, source_name={source_name}")
         if subtitle_result:
             from backend.subtitle_sources import SubtitleResult as SourceSubtitleResult
 
