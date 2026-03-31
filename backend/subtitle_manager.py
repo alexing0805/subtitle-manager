@@ -1810,10 +1810,23 @@ class SubtitleManager:
 
         video_path = episode['path']
         original_name = getattr(subtitle_file, 'filename', None) or 'uploaded-subtitle.srt'
+        # 只允许安全字幕格式后缀，防止 path traversal 通过后缀注入
         suffix = os.path.splitext(original_name)[1].lower() or '.srt'
-        temp_path = os.path.splitext(
+        allowed_suffixes = {'.srt', '.ass', '.ssa', '.vtt', '.smi', '.sub', '.idx', '.sup'}
+        if suffix not in allowed_suffixes:
+            suffix = '.srt'
+
+        subtitle_base = os.path.splitext(
             get_subtitle_save_path(video_path, lang_code="zh-cn", plex_format=settings.PLEX_NAMING_FORMAT)
-        )[0] + f".upload{suffix}"
+        )[0]
+        temp_path = subtitle_base + f".upload{suffix}"
+
+        # Path traversal 检查：确保临时文件路径在预期目录内
+        temp_path_resolved = os.path.realpath(temp_path)
+        subtitle_base_resolved = os.path.realpath(os.path.dirname(subtitle_base))
+        if not temp_path_resolved.startswith(subtitle_base_resolved):
+            logger.error(f"上传路径校验失败（疑似 path traversal）: {temp_path}")
+            return {"success": False, "message": "文件路径不合法"}
 
         content = await subtitle_file.read()
         if not content:
@@ -1864,8 +1877,7 @@ class SubtitleManager:
             'logLevel': settings.LOG_LEVEL,
             'nastoolEnabled': settings.NASTOOL_ENABLED,
             'nastoolWebhookToken': settings.NASTOOL_WEBHOOK_TOKEN or '',
-            'nastoolPathMappings': settings.NASTOOL_PATH_MAPPINGS or '',
-            'apiKey': settings.API_KEY or ''
+            'nastoolPathMappings': settings.NASTOOL_PATH_MAPPINGS or ''
         }
     
     def update_settings(self, settings_data: dict):

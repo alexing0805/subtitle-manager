@@ -99,10 +99,14 @@ const pageTitle = computed(() => routeTitles[route.path] || '字幕管理器')
 
 html {
   scroll-behavior: smooth;
+  font-size: 16px; /* establish base for rem units */
+  /* iOS viewport fit */
+  viewport-fit: cover;
 }
 
 body {
-  font-family: "Space Grotesk", "Segoe UI Variable", "Microsoft YaHei UI", sans-serif;
+  font-family: "SF Pro Display", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif;
+  font-display: swap;
   background: var(--infuse-bg-primary);
   color: var(--infuse-text-primary);
   -webkit-font-smoothing: antialiased;
@@ -492,6 +496,7 @@ body::before {
     align-items: center;
     gap: 14px;
     padding: 14px 18px;
+    padding-top: max(14px, env(safe-area-inset-top));
     background: rgba(6, 10, 25, 0.82);
     backdrop-filter: blur(18px);
     border-bottom: 1px solid var(--infuse-border);
@@ -535,7 +540,12 @@ body::before {
 
   .main-content {
     margin-left: 0;
-    padding: 96px 18px 24px;
+    padding: 80px 14px 20px;
+    /* iOS notch / dynamic island safe area */
+    padding-top: max(80px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
   }
 
   .page-title {
@@ -607,6 +617,19 @@ h1, h2, h3 {
 ::selection {
   background: var(--infuse-accent);
   color: #000;
+}
+
+/* Mobile touch targets - minimum 44px */
+@media (max-width: 768px) {
+  button, .el-button, .el-input__wrapper, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent text selection on interactive elements */
+  button, .el-button {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 /* Smooth Scrollbar */
