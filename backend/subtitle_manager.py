@@ -44,6 +44,8 @@ class SubtitleManager:
     def __init__(self):
         self.processed_files: Set[str] = set()
         self.failed_files: dict = {}  # 记录失败次数
+        self.file_timestamps: dict = {}  # 记录文件的处理时间
+        self.activities: list = []  # 活动记录列表
         self.history_file = "/app/data/history.json"
         self._auto_request_lock = asyncio.Lock()
         self._next_auto_request_at = 0.0
@@ -123,7 +125,9 @@ class SubtitleManager:
                     data = json.load(f)
                     self.processed_files = set(data.get('processed', []))
                     self.failed_files = data.get('failed', {})
-                    logger.info(f"已加载历史记录: {len(self.processed_files)} 个文件已处理")
+                    self.file_timestamps = data.get('timestamps', {})
+                    self.activities = data.get('activities', [])[-100:]  # 保留最近100条活动
+                    logger.info(f"已加载历史记录: {len(self.processed_files)} 个文件已处理, {len(self.activities)} 条活动")
         except Exception as e:
             logger.error(f"加载历史记录失败: {e}")
     
@@ -135,6 +139,8 @@ class SubtitleManager:
                 json.dump({
                     'processed': list(self.processed_files),
                     'failed': self.failed_files,
+                    'timestamps': self.file_timestamps,
+                    'activities': self.activities[-100:],  # 保留最近100条
                     'last_update': datetime.now().isoformat()
                 }, f, ensure_ascii=False, indent=2)
         except Exception as e:
@@ -201,6 +207,10 @@ class SubtitleManager:
             success_count = sum(1 for r in results if r is True)
             fail_count = sum(1 for r in results if r is False or isinstance(r, Exception))
             logger.info(f"处理完成: 成功 {success_count}, 失败 {fail_count}")
+            # 记录扫描活动
+            self._record_activity('scan', f'扫描完成: 发现 {len(new_files)} 个新文件, 处理成功 {success_count} 个', 'success' if fail_count == 0 else 'completed')
+        else:
+            self._record_activity('scan', f'扫描完成: 没有发现新文件', 'success')
         
         self.save_history()
     
@@ -275,6 +285,11 @@ class SubtitleManager:
                             self._mark_cached_video_has_subtitle(video_path, True)
                             logger.info(f"字幕下载并验证成功: {normalized['path']} (plex={plex_refresh})")
                             self.processed_files.add(file_hash)
+                            # 记录活动时间
+                            self.file_timestamps[file_hash] = datetime.now().isoformat()
+                            # 记录活动
+                            video_name = video_info.get('name', os.path.basename(video_path))
+                            self._record_activity('download', f'下载字幕成功: {video_name}', 'success')
                             # 清除失败记录
                             if file_hash in self.failed_files:
                                 del self.failed_files[file_hash]
@@ -2003,7 +2018,26 @@ class SubtitleManager:
     
     def get_recent_activity(self, limit: int = 10):
         """获取最近活动"""
-        return []
+        # 返回最近的活动记录
+        recent = self.activities[-limit:] if self.activities else []
+        return list(reversed(recent))
+    
+    def _record_activity(self, activity_type: str, title: str, status: str = 'success', source: str = None):
+        """记录活动"""
+        activity = {
+            'id': hashlib.md5(f"{time.time()}-{random.random()}".encode()).hexdigest()[:12],
+            'type': activity_type,
+            'title': title,
+            'status': status,
+            'time': datetime.now().isoformat(),
+        }
+        if source:
+            activity['source'] = source
+        self.activities.append(activity)
+        # 保持最多100条记录
+        if len(self.activities) > 100:
+            self.activities = self.activities[-100:]
+        self.save_history()
 
     def get_tvshows(self) -> list:
         """Return normalized TV library data."""
