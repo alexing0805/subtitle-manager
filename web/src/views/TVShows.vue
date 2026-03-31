@@ -1,7 +1,20 @@
 <template>
-  <div class="tv-shows">
+  <div class="tv-shows" ref="containerRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
+    <!-- 鼠标跟随后景 -->
+    <div class="mouse-glow" :style="mouseGlowStyle"></div>
+
+    <!-- 背景粒子效果 -->
+    <div class="bg-particles">
+      <div
+        v-for="n in 20"
+        :key="n"
+        class="particle"
+        :style="getParticleStyle(n)"
+      ></div>
+    </div>
+
     <!-- 页面标题 -->
-    <header class="page-header">
+    <header class="page-header" :style="parallaxStyle">
       <h1 class="page-title">电视剧</h1>
       <p class="page-subtitle">管理电视剧字幕</p>
     </header>
@@ -35,6 +48,8 @@
         :key="show.id"
         class="show-card infuse-card"
         @click="handleShowClick(show)"
+        @mousemove="handleCardMouseMove"
+        @mouseleave="handleCardMouseLeave"
       >
         <div class="show-poster">
           <img
@@ -291,7 +306,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -308,6 +323,70 @@ const store = useSubtitleStore()
 const searchQuery = ref('')
 const shows = ref([])
 const isMobileView = ref(false)
+const containerRef = ref(null)
+const mousePos = reactive({ x: 0, y: 0 })
+
+// Parallax style for header
+const parallaxStyle = computed(() => ({
+  transform: `translate3d(${mousePos.x * 0.005}px, ${mousePos.y * 0.005}px, 0)`
+}))
+
+// Mouse glow style
+const mouseGlowStyle = computed(() => ({
+  left: `${mousePos.x}px`,
+  top: `${mousePos.y}px`,
+  opacity: mousePos.x === 0 && mousePos.y === 0 ? 0 : 1
+}))
+
+// Particle style generator
+function getParticleStyle(n) {
+  const size = Math.random() * 4 + 1
+  const duration = Math.random() * 20 + 10
+  const delay = Math.random() * -20
+  return {
+    width: `${size}px`,
+    height: `${size}px`,
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    animationDuration: `${duration}s`,
+    animationDelay: `${delay}s`,
+    opacity: Math.random() * 0.3 + 0.1,
+    boxShadow: `0 0 ${size * 2}px var(--infuse-accent)`
+  }
+}
+
+// Mouse handlers
+function handleMouseMove(e) {
+  if (!containerRef.value) return
+  const rect = containerRef.value.getBoundingClientRect()
+  mousePos.x = e.clientX - rect.left
+  mousePos.y = e.clientY - rect.top
+}
+
+function handleMouseLeave() {
+  mousePos.x = 0
+  mousePos.y = 0
+}
+
+function handleCardMouseMove(e) {
+  const card = e.currentTarget
+  const rect = card.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const y = e.clientY - rect.top
+  const centerX = rect.width / 2
+  const centerY = rect.height / 2
+  const rotateX = (y - centerY) / 12
+  const rotateY = (centerX - x) / 12
+
+  card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-8px)`
+  card.style.zIndex = '10'
+}
+
+function handleCardMouseLeave(e) {
+  const card = e.currentTarget
+  card.style.transform = ''
+  card.style.zIndex = ''
+}
 
 // 详情对话框
 const showDetailVisible = ref(false)
@@ -421,11 +500,7 @@ function handleBatchUpload() {
 }
 
 async function handleDoSearch() {
-  console.log('handleDoSearch called')
-  console.log('currentEpisode:', currentEpisode.value)
-
   if (!currentEpisode.value) {
-    console.log('No current episode, returning')
     ElMessage.warning('请先选择一个剧集')
     return
   }
@@ -436,19 +511,9 @@ async function handleDoSearch() {
 
   try {
     const url = `/episodes/${currentEpisode.value.id}/search-subtitles`
-    console.log('Calling API:', url)
-
     const response = await api.post(url)
-    console.log('API Response:', response)
-    console.log('Response data:', response.data)
-    console.log('Response data type:', typeof response.data)
-    console.log('Response data is array:', Array.isArray(response.data))
 
     if (Array.isArray(response.data)) {
-      console.log('Response data length:', response.data.length)
-      response.data.forEach((r, i) => {
-        console.log(`Result ${i}:`, r)
-      })
       // 按匹配度降序排序
       searchResults.value = response.data.sort((a, b) => b.score - a.score)
 
@@ -458,11 +523,9 @@ async function handleDoSearch() {
         ElMessage.success(`找到 ${searchResults.value.length} 个字幕`)
       }
     } else {
-      console.error('Response data is not an array:', response.data)
       ElMessage.error('返回数据格式错误')
     }
   } catch (error) {
-    console.error('Search error:', error)
     ElMessage.error('搜索失败: ' + (error.message || '未知错误'))
   } finally {
     searching.value = false
@@ -499,22 +562,32 @@ async function handleDownload(result) {
 async function handleScan() {
   try {
     await ElMessageBox.confirm(
-      '即将扫描电视剧库，查找缺失的字幕文件。此操作可能需要几分钟时间，是否继续？',
-      '确认扫描',
+      `<div class="scan-confirm-content">
+        <div class="scan-icon-pulse">
+          <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </div>
+        <h3>确认扫描电视剧库</h3>
+        <p>即将开始同步电视剧媒体库。系统将扫描新增剧集并查找缺失字幕。</p>
+      </div>`,
+      '',
       {
         confirmButtonText: '开始扫描',
         cancelButtonText: '取消',
-        type: 'info',
-        confirmButtonClass: 'infuse-btn-primary scan-confirm-btn',
-        cancelButtonClass: 'infuse-btn-cancel',
+        dangerouslyUseHTMLString: true,
+        confirmButtonClass: 'infuse-btn-scan-main',
+        cancelButtonClass: 'infuse-btn-cancel-main',
         showClose: false,
-        closeOnClickModal: false,
-        closeOnPressEscape: false,
+        center: true,
+        customClass: 'infuse-message-box scan-modal',
         beforeClose: (action, instance, done) => {
           if (action === 'confirm') {
             instance.confirmButtonLoading = true
             instance.confirmButtonText = '扫描中...'
-            // 禁止关闭
+            setTimeout(() => done(), 800)
             return
           }
           done()
@@ -522,49 +595,31 @@ async function handleScan() {
       }
     )
     
-    ElMessage.info('正在扫描电视剧库...')
+    ElMessage.info({ message: '正在启动电视剧库扫描任务...', customClass: 'infuse-message' })
     const result = await store.scanLibrary()
     
     if (result && result.success === false) {
-      ElMessage.error(result.message || '扫描失败')
-      return
+      throw new Error(result.message || '扫描任务提交失败')
     }
     
-    ElMessage.success('扫描完成！正在刷新列表...')
+    ElMessage.success({ message: '扫描任务已成功提交, 正在刷新数据...', customClass: 'infuse-message' })
     
-    // 等待一下让后台扫描完成
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    // 刷新列表
-    await store.fetchTVShows()
-    shows.value = store.tvShows
-    
-    ElMessage.success('列表已更新')
+    setTimeout(async () => {
+      await store.fetchTVShows()
+      shows.value = store.tvShows
+      ElMessage.success({ message: '电视剧库数据已同步更新', customClass: 'infuse-message' })
+    }, 3000)
+
   } catch (error) {
-    // 用户取消时 error 为 'cancel' 或 'close'
-    if (error === 'cancel' || error === 'close') {
-      return
-    }
-    console.error('扫描失败:', error)
-    ElMessage.error('扫描失败: ' + (error.message || '未知错误'))
+    if (error === 'cancel' || error === 'close' || error === '') return
+    console.error('Scan Error:', error)
+    ElMessage.error({ message: '扫描失败: ' + (error.message || '未知错误'), customClass: 'infuse-message' })
   }
 }
 
 function handlePosterError(e) {
   e.target.style.display = 'none'
   e.target.nextElementSibling?.classList.add('show-placeholder')
-}
-
-function getSourceColor(source) {
-  const colors = {
-    ' shooter': { background: '#ff6b35', color: '#fff' },
-    ' 迅雷': { background: '#0071e3', color: '#fff' },
-    ' 字幕库': { background: '#34c759', color: '#fff' },
-    ' Assrt': { background: '#af52de', color: '#fff' },
-    ' OpenSubtitles': { background: '#5856d6', color: '#fff' },
-    ' SubHD': { background: '#e6a23c', color: '#fff' }
-  }
-  return colors[source] || { background: 'var(--infuse-bg-tertiary)', color: 'var(--infuse-text-secondary)' }
 }
 
 function getRankClass(score) {
@@ -627,11 +682,58 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 <style scoped>
 .tv-shows {
   max-width: 1400px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 鼠标跟随后景 */
+.mouse-glow {
+  position: fixed;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(34, 246, 255, 0.05) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 1s ease;
+  filter: blur(40px);
+}
+
+/* 背景粒子效果 */
+.bg-particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  background: var(--infuse-accent);
+  border-radius: 50%;
+  animation: float-particle linear infinite;
+}
+
+@keyframes float-particle {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% {
+    transform: translateY(-100vh) scale(0.5);
+    opacity: 0;
+  }
 }
 
 /* 页面标题 */
 .page-header {
   margin-bottom: 32px;
+  position: relative;
+  z-index: 1;
 }
 
 .page-title {
@@ -654,11 +756,13 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  margin-bottom: 32px;
+  margin-bottom: 40px;
   background: rgba(8, 14, 34, 0.62);
   border: 1px solid var(--infuse-border);
   backdrop-filter: blur(18px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  position: relative;
+  z-index: 1;
 }
 
 .search-box {
@@ -669,10 +773,6 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   display: flex;
   gap: 12px;
   align-items: center;
-}
-
-.filter-group .el-button {
-  white-space: nowrap;
 }
 
 /* 扫描按钮特殊样式 */
@@ -725,18 +825,17 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 .shows-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 24px;
+  gap: 32px;
+  position: relative;
+  z-index: 1;
 }
 
 .show-card {
   cursor: pointer;
-  transition: all var(--infuse-transition-normal);
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
   position: relative;
-}
-
-.show-card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--infuse-shadow-glow), var(--infuse-shadow-lg);
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 
 /* 海报 */
@@ -746,6 +845,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   overflow: hidden;
   background: linear-gradient(145deg, rgba(11, 20, 48, 0.92), rgba(8, 13, 30, 0.96));
   border: 1px solid rgba(119, 247, 255, 0.12);
+  border-radius: var(--infuse-radius-lg);
 }
 
 .show-poster::before {
@@ -763,11 +863,11 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform var(--infuse-transition-slow);
+  transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 .show-card:hover .poster-image {
-  transform: scale(1.05);
+  transform: scale(1.08);
 }
 
 .show-card:hover .show-poster::before {
@@ -863,11 +963,13 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   justify-content: center;
   font-size: 12px;
   font-weight: 700;
+  box-shadow: 0 4px 12px rgba(255, 43, 214, 0.3);
 }
 
 .subtitle-badge.has {
   background: rgba(34, 246, 255, 0.84);
   color: #07101a;
+  box-shadow: 0 4px 12px rgba(34, 246, 255, 0.3);
 }
 
 /* 剧集信息 */
@@ -896,7 +998,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 }
 
 .meta-item {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--infuse-text-secondary);
   background: rgba(11, 18, 42, 0.76);
   padding: 2px 8px;
@@ -935,69 +1037,60 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 /* 详情对话框 */
 :deep(.infuse-dialog) {
   background: var(--infuse-bg-secondary);
+  border-radius: 20px;
+  border: 1px solid var(--infuse-border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 :deep(.infuse-dialog .el-dialog__header) {
   border-bottom: 1px solid var(--infuse-border);
-  padding: 20px 24px;
+  padding: 24px 32px;
 }
 
 :deep(.infuse-dialog .el-dialog__title) {
   color: var(--infuse-text-primary);
   font-weight: 700;
+  font-size: 20px;
 }
 
 :deep(.infuse-dialog .el-dialog__body) {
-  padding: 24px;
+  padding: 32px;
   color: var(--infuse-text-primary);
-}
-
-:deep(.infuse-dialog .el-dialog__footer) {
-  border-top: 1px solid var(--infuse-border);
-  padding: 16px 24px;
 }
 
 /* 详情头部 */
 .detail-header {
   display: flex;
   gap: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
 .detail-poster {
   width: 150px;
   flex-shrink: 0;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
 }
 
-.detail-poster .poster-image,
-.detail-poster .poster-placeholder {
+.detail-poster .poster-image {
   width: 100%;
   aspect-ratio: 2/3;
   border-radius: var(--infuse-radius-md);
   object-fit: cover;
 }
 
-.detail-poster .poster-placeholder {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 48px;
-}
-
 .detail-info h2 {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 800;
   color: var(--infuse-text-primary);
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
 }
 
 .detail-meta {
   display: flex;
   gap: 12px;
   color: var(--infuse-text-secondary);
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .detail-stats {
@@ -1013,29 +1106,19 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   background: rgba(10, 16, 38, 0.72);
   border-radius: var(--infuse-radius-md);
   border: 1px solid var(--infuse-border);
+  min-width: 100px;
 }
 
-.stat-box.has {
-  border-color: rgba(52, 199, 89, 0.3);
-}
-
-.stat-box.missing {
-  border-color: rgba(255, 149, 0, 0.3);
-}
+.stat-box.has { border-color: rgba(52, 199, 89, 0.3); }
+.stat-box.missing { border-color: rgba(255, 149, 0, 0.3); }
 
 .stat-box .stat-number {
   font-size: 24px;
   font-weight: 700;
-  color: var(--infuse-text-primary);
 }
 
-.stat-box.has .stat-number {
-  color: #34c759;
-}
-
-.stat-box.missing .stat-number {
-  color: #ff9500;
-}
+.stat-box.has .stat-number { color: #34c759; }
+.stat-box.missing .stat-number { color: #ff9500; }
 
 .stat-box .stat-label {
   font-size: 12px;
@@ -1043,50 +1126,11 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   margin-top: 4px;
 }
 
-/* 季标签 */
-.seasons-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--infuse-border);
-}
-
-.season-tab {
-  padding: 10px 20px;
-  border-radius: var(--infuse-radius-md);
-  background: var(--infuse-bg-card);
-  border: 1px solid var(--infuse-border);
-  cursor: pointer;
-  transition: all var(--infuse-transition-fast);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--infuse-text-secondary);
-}
-
-.season-tab:hover {
-  border-color: var(--infuse-border-hover);
-  color: var(--infuse-text-primary);
-}
-
-.season-tab.active {
-  background: var(--infuse-accent);
-  border-color: var(--infuse-accent);
-  color: white;
-}
-
-.episode-count {
-  font-size: 12px;
-  opacity: 0.7;
-  margin-left: 4px;
-}
-
-/* 季缩略图区域 */
+/* 季标签和缩略图 */
 .seasons-section {
   display: flex;
   gap: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
   align-items: flex-start;
 }
 
@@ -1095,22 +1139,43 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   gap: 8px;
   flex-wrap: wrap;
   flex: 1;
-  margin-bottom: 0;
-  padding-bottom: 0;
+}
+
+.season-tab {
+  padding: 10px 18px;
+  border-radius: var(--infuse-radius-md);
+  background: var(--infuse-bg-card);
+  border: 1px solid var(--infuse-border);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--infuse-text-secondary);
+}
+
+.season-tab:hover {
+  border-color: var(--infuse-accent);
+  color: var(--infuse-text-primary);
+}
+
+.season-tab.active {
+  background: var(--infuse-accent);
+  border-color: var(--infuse-accent);
+  color: #07101a;
+  font-weight: 600;
 }
 
 .current-season-poster {
-  width: 180px;
+  width: 160px;
   flex-shrink: 0;
   border-radius: var(--infuse-radius-md);
   overflow: hidden;
-  box-shadow: var(--infuse-shadow-md);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 
 .season-poster-image {
   width: 100%;
   height: auto;
-  display: block;
   aspect-ratio: 2/3;
   object-fit: cover;
 }
@@ -1119,35 +1184,46 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 .episodes-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 400px;
+  gap: 10px;
+  max-height: 450px;
   overflow-y: auto;
+  padding-right: 8px;
+}
+
+.episodes-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.episodes-list::-webkit-scrollbar-thumb {
+  background: var(--infuse-border);
+  border-radius: 3px;
 }
 
 .episode-item {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px;
+  padding: 16px 20px;
   background: rgba(10, 16, 38, 0.74);
   border-radius: var(--infuse-radius-md);
   border: 1px solid var(--infuse-border);
-  transition: all var(--infuse-transition-fast);
+  transition: all 0.2s;
 }
 
 .episode-item:hover {
-  border-color: var(--infuse-border-hover);
+  border-color: var(--infuse-accent);
   background: rgba(18, 29, 62, 0.88);
+  transform: translateX(4px);
 }
 
 .episode-number {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--infuse-bg-tertiary);
-  border-radius: var(--infuse-radius-sm);
+  background: rgba(34, 246, 255, 0.1);
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 700;
   color: var(--infuse-accent);
@@ -1174,244 +1250,59 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   text-overflow: ellipsis;
 }
 
-.episode-status {
-  flex-shrink: 0;
+/* 扫描确认对话框样式 */
+:deep(.scan-modal) {
+  max-width: 420px !important;
 }
 
-.episode-actions {
-  flex-shrink: 0;
-}
-
-/* 搜索对话框 */
-.search-dialog-content {
-  min-height: 300px;
-}
-
-.episode-info-header {
+:deep(.scan-confirm-content) {
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--infuse-border);
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
-.episode-poster {
+:deep(.scan-icon-pulse) {
   width: 80px;
-  flex-shrink: 0;
-}
-
-.poster-thumb,
-.poster-thumb-placeholder {
-  width: 100%;
-  aspect-ratio: 2/3;
-  border-radius: var(--infuse-radius-sm);
-  object-fit: cover;
-}
-
-.poster-thumb-placeholder {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 24px;
-}
-
-.episode-details h3 {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--infuse-text-primary);
-  margin-bottom: 4px;
-}
-
-.episode-code {
-  font-size: 14px;
-  color: var(--infuse-accent);
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.episode-file {
-  font-size: 12px;
-  color: var(--infuse-text-muted);
-}
-
-/* 搜索结果 */
-.search-results {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.empty-results {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  color: var(--infuse-text-muted);
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
-}
-
-.subtitle-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: rgba(10, 16, 38, 0.74);
-  border-radius: var(--infuse-radius-md);
-  border: 1px solid var(--infuse-border);
-  transition: all var(--infuse-transition-fast);
-}
-
-.subtitle-item:hover {
-  border-color: var(--infuse-border-hover);
-  background: rgba(18, 29, 62, 0.88);
-}
-
-.subtitle-rank {
-  width: 56px;
-  height: 56px;
+  height: 80px;
+  background: radial-gradient(circle, rgba(34, 246, 255, 0.15) 0%, transparent 70%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
-  flex-shrink: 0;
+  color: var(--infuse-accent);
+  margin-bottom: 20px;
+  animation: modal-pulse 2s infinite;
 }
 
-.subtitle-rank.excellent {
-  background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
+@keyframes modal-pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 246, 255, 0.4); }
+  70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(34, 246, 255, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 246, 255, 0); }
 }
 
-.subtitle-rank.good {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
+:deep(.infuse-btn-scan-main) {
+  background: linear-gradient(135deg, #22f6ff 0%, #00a8ff 100%) !important;
+  border: none !important;
+  color: #04111c !important;
+  font-weight: 700 !important;
+  padding: 12px 32px !important;
+  border-radius: 100px !important;
+  width: 100% !important;
 }
 
-.subtitle-rank.fair {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-}
-
-.subtitle-rank.poor {
-  background: rgba(107, 114, 128, 0.15);
-  color: #6b7280;
-}
-
-.subtitle-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.subtitle-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--infuse-text-primary);
-  margin-bottom: 8px;
-}
-
-.subtitle-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.source-tag {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.lang-tag {
-  font-size: 12px;
-  color: var(--infuse-text-tertiary);
-}
-
-/* SubHD 文件名显示样式 */
-.subhd-filename {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 6px 0;
-  padding: 6px 10px;
-  background: rgba(59, 130, 246, 0.1);
-  border-radius: 6px;
-  border-left: 3px solid #3b82f6;
-}
-
-.subhd-filename .el-icon {
-  font-size: 14px;
-  color: #3b82f6;
-  flex-shrink: 0;
-}
-
-.subhd-filename .filename-text {
-  font-size: 12px;
-  color: var(--infuse-text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-family: 'SF Mono', Monaco, monospace;
-}
-
-.subhd-summary {
-  margin-bottom: 8px;
-  font-size: 12px;
-  color: var(--infuse-text-secondary);
-  line-height: 1.5;
-}
-
-.subhd-meta-tag {
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #c084fc;
-  background: rgba(192, 132, 252, 0.14);
-  border: 1px solid rgba(192, 132, 252, 0.2);
-}
-
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border-radius: 100px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--infuse-transition-fast);
-  border: none;
-}
-
-.action-btn.primary {
-  background: var(--infuse-accent);
-  color: white;
-}
-
-.action-btn.primary:hover {
-  background: var(--infuse-accent-hover);
-}
-
-.action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+:deep(.infuse-btn-cancel-main) {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: var(--infuse-text-muted) !important;
+  margin-top: 10px !important;
+  width: 100% !important;
 }
 
 /* 响应式 */
 @media (max-width: 768px) {
   .shows-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 16px;
   }
 
@@ -1427,14 +1318,13 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   .filter-group {
     width: 100%;
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
 
-  .filter-group .el-button,
-  .episode-actions .el-button {
+  .filter-group .el-button {
+    margin: 0 !important;
     width: 100%;
-    margin-left: 0 !important;
   }
 
   .detail-header {
@@ -1443,117 +1333,17 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 
   .detail-poster {
     width: 120px;
+    margin: 0 auto;
   }
 
-  .seasons-tabs {
-    overflow-x: auto;
-    padding-bottom: 6px;
-  }
-
-  .episode-item,
-  .subtitle-item,
-  .episode-info-header {
+  .seasons-section {
     flex-direction: column;
-    align-items: flex-start;
   }
 
-  .episode-number {
-    width: auto;
-    min-width: 0;
-  }
-
-  .episode-status,
-  .episode-actions,
-  .subtitle-rank {
+  .current-season-poster {
     width: 100%;
+    max-width: 200px;
+    margin: 0 auto;
   }
-
-  .subtitle-rank {
-    width: 48px;
-    height: 48px;
-  }
-
-  .detail-stats {
-    grid-template-columns: 1fr;
-  }
-
-  :deep(.infuse-dialog .el-dialog__footer) {
-    display: grid;
-    gap: 10px;
-  }
-
-  :deep(.infuse-dialog .el-dialog__footer .el-button) {
-    width: 100%;
-    margin-left: 0 !important;
-  }
-}
-
-@media (max-width: 560px) {
-  .shows-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .show-poster {
-    aspect-ratio: 16 / 9;
-  }
-}
-
-/* 扫描确认对话框样式 */
-:deep(.scan-confirm-btn) {
-  background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%) !important;
-  border-color: #ff6b35 !important;
-  color: white !important;
-  font-weight: 600;
-  padding: 12px 28px !important;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-:deep(.scan-confirm-btn:hover) {
-  background: linear-gradient(135deg, #ff7b45 0%, #ff9555 100%) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
-}
-
-:deep(.scan-confirm-btn.el-button--primary.is-loading) {
-  background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%) !important;
-}
-
-:deep(.infuse-btn-cancel) {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: var(--infuse-text-secondary) !important;
-}
-
-:deep(.infuse-btn-cancel:hover) {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: var(--infuse-text-primary) !important;
-}
-
-/* 对话框背景美化 */
-:deep(.el-message-box) {
-  background: var(--infuse-bg-card) !important;
-  border: 1px solid var(--infuse-border) !important;
-  border-radius: 16px !important;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
-  backdrop-filter: blur(20px) !important;
-}
-
-:deep(.el-message-box__title) {
-  color: var(--infuse-text-primary) !important;
-  font-weight: 700;
-}
-
-:deep(.el-message-box__message) {
-  color: var(--infuse-text-secondary) !important;
-  line-height: 1.6;
-}
-
-:deep(.el-message-box__headerbtn .el-message-box__close) {
-  color: var(--infuse-text-muted) !important;
-}
-
-:deep(.el-message-box__headerbtn:hover .el-message-box__close) {
-  color: var(--infuse-text-primary) !important;
 }
 </style>

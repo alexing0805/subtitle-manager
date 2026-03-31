@@ -1,41 +1,56 @@
 <template>
-  <div class="movies">
-    <header class="page-header">
+  <div class="movies" ref="containerRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
+    <!-- 鼠标跟随后景 -->
+    <div class="mouse-glow" :style="mouseGlowStyle"></div>
+
+    <!-- 背景粒子效果 -->
+    <div class="bg-particles">
+      <div
+        v-for="n in 25"
+        :key="n"
+        class="particle"
+        :style="getParticleStyle(n)"
+      ></div>
+    </div>
+
+    <!-- 页面标题 -->
+    <header class="page-header" :style="parallaxStyle">
       <h1 class="page-title">电影</h1>
       <p class="page-subtitle">{{ filteredMovies.length }} 部影片</p>
     </header>
 
-    <div class="toolbar">
+    <!-- 工具栏 -->
+    <div class="toolbar infuse-card">
       <div class="search-box">
         <el-input
           v-model="searchQuery"
           placeholder="搜索电影..."
+          prefix-icon="Search"
           clearable
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
+        />
       </div>
       <div class="filter-group">
-        <el-select v-model="filterStatus" placeholder="筛选状态" clearable>
+        <el-select v-model="filterStatus" placeholder="筛选状态" clearable class="infuse-select">
           <el-option label="全部" value="" />
           <el-option label="有字幕" value="with" />
           <el-option label="无字幕" value="without" />
         </el-select>
-        <button class="infuse-button scan-btn" @click="handleScan">
+        <el-button class="infuse-btn-default scan-btn" @click="handleScan">
           <el-icon><Refresh /></el-icon>
           扫描
-        </button>
+        </el-button>
       </div>
     </div>
 
+    <!-- 电影网格 -->
     <div class="movies-grid">
       <div
         v-for="movie in filteredMovies"
         :key="movie.id"
-        class="movie-card"
+        class="movie-card infuse-card"
         @click="handleMovieClick(movie)"
+        @mousemove="handleCardMouseMove"
+        @mouseleave="handleCardMouseLeave"
       >
         <div class="movie-poster">
           <img
@@ -69,7 +84,7 @@
             </div>
           </div>
           <div class="subtitle-badge" :class="{ has: movie.hasSubtitle }">
-            {{ movie.hasSubtitle ? '✓' : '无字幕' }}
+            {{ movie.hasSubtitle ? '✓' : '无' }}
           </div>
         </div>
         <div class="movie-info">
@@ -97,19 +112,17 @@
           </div>
           <div class="header-info">
             <h3>{{ currentMovie.name }}</h3>
-            <p>{{ currentMovie.filename }}</p>
+            <p class="filename-text">{{ currentMovie.filename }}</p>
             <div class="header-meta">
-              <span v-if="currentMovie.year">{{ currentMovie.year }}</span>
-              <span v-if="currentMovie.resolution">{{ currentMovie.resolution }}</span>
+              <span v-if="currentMovie.year" class="meta-pill">{{ currentMovie.year }}</span>
+              <span v-if="currentMovie.resolution" class="meta-pill">{{ currentMovie.resolution }}</span>
             </div>
           </div>
         </div>
 
         <div class="search-results" v-loading="searching">
           <div v-if="searchResults.length === 0 && !searching" class="empty-results">
-            <div class="empty-icon">
-              <el-icon><Search /></el-icon>
-            </div>
+            <el-icon class="empty-icon"><Search /></el-icon>
             <p>点击搜索按钮开始查找字幕</p>
           </div>
 
@@ -151,12 +164,10 @@
       </div>
 
       <template #footer>
-        <button class="infuse-button secondary" @click="searchDialogVisible = false">关闭</button>
-        <button class="infuse-button" @click="handleDoSearch" :disabled="searching">
-          <el-icon v-if="!searching"><Search /></el-icon>
-          <span v-else class="loading-spinner"></span>
-          {{ searching ? '搜索中...' : '搜索' }}
-        </button>
+        <el-button class="infuse-btn-default" @click="searchDialogVisible = false">关闭</el-button>
+        <el-button type="primary" class="infuse-btn-primary" @click="handleDoSearch" :loading="searching">
+          搜索
+        </el-button>
       </template>
     </el-dialog>
 
@@ -175,11 +186,7 @@
           </div>
           <div class="header-info">
             <h3>{{ currentMovie.name }}</h3>
-            <p>{{ currentMovie.filename }}</p>
-            <div class="header-meta">
-              <span v-if="currentMovie.year">{{ currentMovie.year }}</span>
-              <span v-if="currentMovie.resolution">{{ currentMovie.resolution }}</span>
-            </div>
+            <p class="filename-text">{{ currentMovie.filename }}</p>
           </div>
         </div>
 
@@ -197,10 +204,9 @@
           <div v-else-if="movieSubtitles.length === 0" class="empty-subtitles">
             <el-icon><Document /></el-icon>
             <p>暂无字幕文件</p>
-            <button class="infuse-button" @click="switchToSearch">
-              <el-icon><Search /></el-icon>
+            <el-button type="primary" class="infuse-btn-primary" @click="switchToSearch">
               搜索字幕
-            </button>
+            </el-button>
           </div>
 
           <div v-else class="subtitles-list">
@@ -235,18 +241,17 @@
       </div>
 
       <template #footer>
-        <button class="infuse-button secondary" @click="manageDialogVisible = false">关闭</button>
-        <button class="infuse-button" @click="switchToSearch">
-          <el-icon><Search /></el-icon>
+        <el-button class="infuse-btn-default" @click="manageDialogVisible = false">关闭</el-button>
+        <el-button type="primary" class="infuse-btn-primary" @click="switchToSearch">
           搜索新字幕
-        </button>
+        </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Film, Check, Download, Document, Delete } from '@element-plus/icons-vue'
@@ -270,23 +275,84 @@ const downloading = ref(null)
 const loadingSubtitles = ref(false)
 const deletingSubtitle = ref(null)
 const isMobileView = ref(false)
+const containerRef = ref(null)
+const mousePos = reactive({ x: 0, y: 0 })
 
 const movies = ref([])
 
+// Parallax style for header
+const parallaxStyle = computed(() => ({
+  transform: `translate3d(${mousePos.x * 0.005}px, ${mousePos.y * 0.005}px, 0)`
+}))
+
+// Mouse glow style
+const mouseGlowStyle = computed(() => ({
+  left: `${mousePos.x}px`,
+  top: `${mousePos.y}px`,
+  opacity: mousePos.x === 0 && mousePos.y === 0 ? 0 : 1
+}))
+
+// Particle style generator
+function getParticleStyle(n) {
+  const size = Math.random() * 5 + 1
+  const duration = Math.random() * 25 + 15
+  const delay = Math.random() * -15
+  return {
+    width: `${size}px`,
+    height: `${size}px`,
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    animationDuration: `${duration}s`,
+    animationDelay: `${delay}s`,
+    opacity: Math.random() * 0.4 + 0.1,
+    boxShadow: `0 0 ${size * 2}px var(--infuse-accent)`
+  }
+}
+
+// Mouse handlers
+function handleMouseMove(e) {
+  if (!containerRef.value) return
+  const rect = containerRef.value.getBoundingClientRect()
+  mousePos.x = e.clientX - rect.left
+  mousePos.y = e.clientY - rect.top
+}
+
+function handleMouseLeave() {
+  mousePos.x = 0
+  mousePos.y = 0
+}
+
+function handleCardMouseMove(e) {
+  const card = e.currentTarget
+  const rect = card.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const y = e.clientY - rect.top
+  const centerX = rect.width / 2
+  const centerY = rect.height / 2
+  const rotateX = (y - centerY) / 12
+  const rotateY = (centerX - x) / 12
+
+  card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-8px)`
+  card.style.zIndex = '10'
+}
+
+function handleCardMouseLeave(e) {
+  const card = e.currentTarget
+  card.style.transform = ''
+  card.style.zIndex = ''
+}
+
 const filteredMovies = computed(() => {
   let result = movies.value
-
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(m => m.name.toLowerCase().includes(query))
   }
-
   if (filterStatus.value === 'with') {
     result = result.filter(m => m.hasSubtitle)
   } else if (filterStatus.value === 'without') {
     result = result.filter(m => !m.hasSubtitle)
   }
-
   return result
 })
 
@@ -307,7 +373,6 @@ function getMovieArtUrl(movie) {
 onMounted(async () => {
   updateViewportState()
   window.addEventListener('resize', updateViewportState)
-
   try {
     await store.fetchMovies()
     movies.value = store.movies
@@ -321,7 +386,7 @@ onBeforeUnmount(() => {
 })
 
 function handleMovieClick(movie) {
-  console.log('Clicked movie:', movie)
+  // 可以展示详情或者管理
 }
 
 function handleSearch(movie) {
@@ -338,14 +403,12 @@ async function handleManage(movie) {
 
 async function loadMovieSubtitles() {
   if (!currentMovie.value) return
-  
   loadingSubtitles.value = true
   try {
     const response = await api.get(`/movies/${currentMovie.value.id}/subtitles`)
     movieSubtitles.value = response.data.subtitles || []
   } catch (error) {
     ElMessage.error('加载字幕列表失败')
-    console.error(error)
     movieSubtitles.value = []
   } finally {
     loadingSubtitles.value = false
@@ -355,17 +418,13 @@ async function loadMovieSubtitles() {
 async function handleDeleteSubtitle(subtitle) {
   try {
     deletingSubtitle.value = subtitle.path
-    await api.post('/subtitles/delete', {
-      subtitlePath: subtitle.path
-    })
+    await api.post('/subtitles/delete', { subtitlePath: subtitle.path })
     ElMessage.success('字幕已删除')
     await loadMovieSubtitles()
-    // 刷新电影列表以更新字幕状态
     await store.fetchMovies()
     movies.value = store.movies
   } catch (error) {
     ElMessage.error('删除字幕失败')
-    console.error(error)
   } finally {
     deletingSubtitle.value = null
   }
@@ -385,11 +444,7 @@ function getRankClass(score) {
 }
 
 function normalizeSubtitleLabel(value) {
-  return (value || '')
-    .toLowerCase()
-    .replace(/[.\-_()[\]{}]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return (value || '').toLowerCase().replace(/[.\-_()[\]{}]/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
 function shouldShowSubhdFilename(result) {
@@ -399,31 +454,21 @@ function shouldShowSubhdFilename(result) {
 
 function markMovieHasSubtitle(movieId, hasSubtitle = true) {
   const target = movies.value.find(movie => movie.id === movieId)
-  if (target) {
-    target.hasSubtitle = hasSubtitle
-  }
+  if (target) target.hasSubtitle = hasSubtitle
   if (currentMovie.value?.id === movieId) {
-    currentMovie.value = {
-      ...currentMovie.value,
-      hasSubtitle
-    }
+    currentMovie.value = { ...currentMovie.value, hasSubtitle }
   }
 }
 
 async function handleDoSearch() {
   if (!currentMovie.value) return
-
   searching.value = true
   try {
     const response = await api.post(`/movies/${currentMovie.value.id}/search-subtitles`)
-    // 按匹配度降序排序
     searchResults.value = response.data.sort((a, b) => b.score - a.score)
-    if (searchResults.value.length === 0) {
-      ElMessage.info('未找到匹配的字幕')
-    }
+    if (searchResults.value.length === 0) ElMessage.info('未找到匹配的字幕')
   } catch (error) {
     ElMessage.error('搜索失败')
-    console.error(error)
   } finally {
     searching.value = false
   }
@@ -432,7 +477,6 @@ async function handleDoSearch() {
 async function handleDownload(result) {
   downloading.value = result.id
   try {
-    // 构建请求参数
     const requestData = {
       subtitle_id: result.id,
       source_name: result.source,
@@ -446,7 +490,6 @@ async function handleDownload(result) {
         filename: result.filename
       }
     }
-    
     await api.post(`/movies/${currentMovie.value.id}/download-subtitle`, requestData)
     ElMessage.success('字幕下载成功')
     searchDialogVisible.value = false
@@ -461,22 +504,32 @@ async function handleDownload(result) {
 async function handleScan() {
   try {
     await ElMessageBox.confirm(
-      '即将扫描电影库，查找缺失的字幕文件。此操作可能需要几分钟时间，是否继续？',
-      '确认扫描',
+      `<div class="scan-confirm-content">
+        <div class="scan-icon-pulse">
+          <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </div>
+        <h3>确认扫描电影库</h3>
+        <p>即将开始同步电影媒体库。系统将扫描新增电影并查找缺失字幕。</p>
+      </div>`,
+      '',
       {
         confirmButtonText: '开始扫描',
         cancelButtonText: '取消',
-        type: 'info',
-        confirmButtonClass: 'infuse-btn-primary scan-confirm-btn',
-        cancelButtonClass: 'infuse-btn-cancel',
+        dangerouslyUseHTMLString: true,
+        confirmButtonClass: 'infuse-btn-scan-main',
+        cancelButtonClass: 'infuse-btn-cancel-main',
         showClose: false,
-        closeOnClickModal: false,
-        closeOnPressEscape: false,
+        center: true,
+        customClass: 'infuse-message-box scan-modal',
         beforeClose: (action, instance, done) => {
           if (action === 'confirm') {
             instance.confirmButtonLoading = true
             instance.confirmButtonText = '扫描中...'
-            // 禁止关闭
+            setTimeout(() => done(), 800)
             return
           }
           done()
@@ -484,60 +537,105 @@ async function handleScan() {
       }
     )
     
-    ElMessage.info('正在扫描电影库...')
+    ElMessage.info({ message: '正在扫描电影库...', customClass: 'infuse-message' })
     const result = await store.scanLibrary()
+    if (result && result.success === false) throw new Error(result.message || '扫描失败')
     
-    if (result && result.success === false) {
-      ElMessage.error(result.message || '扫描失败')
-      return
-    }
-    
-    ElMessage.success('扫描完成！正在刷新列表...')
-    
-    // 等待一下让后台扫描完成
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    // 刷新列表
-    await store.fetchMovies()
-    movies.value = store.movies
-    
-    ElMessage.success('列表已更新')
+    ElMessage.success({ message: '扫描任务已提交, 正在刷新列表...', customClass: 'infuse-message' })
+    setTimeout(async () => {
+      await store.fetchMovies()
+      movies.value = store.movies
+      ElMessage.success({ message: '列表已更新', customClass: 'infuse-message' })
+    }, 3000)
   } catch (error) {
-    // 用户取消时 error 为 'cancel' 或 'close'
-    if (error === 'cancel' || error === 'close') {
-      return
-    }
-    console.error('扫描失败:', error)
-    ElMessage.error('扫描失败: ' + (error.message || '未知错误'))
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error({ message: '扫描失败: ' + (error.message || '未知错误'), customClass: 'infuse-message' })
   }
 }
 
 function handlePosterError(event) {
   event.target.style.display = 'none'
+  event.target.nextElementSibling?.classList.add('show-placeholder')
 }
 </script>
 
 <style scoped>
 .movies {
   max-width: 1600px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 鼠标跟随后景 */
+.mouse-glow {
+  position: fixed;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(34, 246, 255, 0.05) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 1s ease;
+  filter: blur(40px);
+}
+
+/* 背景粒子效果 */
+.bg-particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  background: var(--infuse-accent);
+  border-radius: 50%;
+  animation: float-particle linear infinite;
+}
+
+@keyframes float-particle {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-100vh) scale(0.5); opacity: 0; }
 }
 
 .page-header {
   margin-bottom: 32px;
+  position: relative;
+  z-index: 1;
+}
+
+.page-title {
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--infuse-text-primary);
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: 18px;
+  color: var(--infuse-text-secondary);
 }
 
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
+  margin-bottom: 40px;
   gap: 16px;
-  padding: 18px 20px;
+  padding: 20px 24px;
+  background: rgba(8, 14, 34, 0.62);
   border: 1px solid var(--infuse-border);
   border-radius: var(--infuse-radius-lg);
-  background: rgba(8, 14, 34, 0.62);
   backdrop-filter: blur(18px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  position: relative;
+  z-index: 1;
 }
 
 .search-box {
@@ -550,22 +648,18 @@ function handlePosterError(event) {
   align-items: center;
 }
 
-.filter-group .el-select {
-  min-width: 120px;
-}
-
-/* 扫描按钮特殊样式 */
 .scan-btn {
-  background: linear-gradient(135deg, rgba(255, 107, 53, 0.9), rgba(255, 133, 85, 0.9)) !important;
-  color: white !important;
-  border: none !important;
-  box-shadow: 0 12px 28px rgba(255, 107, 53, 0.35) !important;
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.15), rgba(255, 133, 85, 0.15)) !important;
+  border-color: rgba(255, 107, 53, 0.4) !important;
+  color: #ff6b35 !important;
 }
 
 .scan-btn:hover {
-  background: linear-gradient(135deg, rgba(255, 117, 63, 0.95), rgba(255, 143, 95, 0.95)) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 0 0 1px rgba(255, 107, 53, 0.5), 0 0 26px rgba(255, 107, 53, 0.4), 0 18px 36px rgba(255, 107, 53, 0.3) !important;
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.25), rgba(255, 133, 85, 0.25)) !important;
+  border-color: #ff6b35 !important;
+  color: #ff8555 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
 }
 
 .scan-btn .el-icon {
@@ -579,17 +673,17 @@ function handlePosterError(event) {
 .movies-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 24px;
+  gap: 32px;
+  position: relative;
+  z-index: 1;
 }
 
 .movie-card {
   cursor: pointer;
-  transition: transform var(--infuse-transition-slow);
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
   position: relative;
-}
-
-.movie-card:hover {
-  transform: translateY(-6px) scale(1.015);
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 
 .movie-poster {
@@ -598,9 +692,8 @@ function handlePosterError(event) {
   background: linear-gradient(145deg, rgba(11, 20, 48, 0.92), rgba(8, 13, 30, 0.96));
   border-radius: var(--infuse-radius-lg);
   overflow: hidden;
-  box-shadow: var(--infuse-shadow-md);
-  transition: box-shadow var(--infuse-transition-normal);
   border: 1px solid rgba(119, 247, 255, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .movie-poster::before {
@@ -609,13 +702,8 @@ function handlePosterError(event) {
   inset: 0;
   background: linear-gradient(135deg, rgba(34, 246, 255, 0.14), transparent 32%, rgba(255, 43, 214, 0.14));
   opacity: 0;
-  transition: opacity var(--infuse-transition-normal);
+  transition: opacity 0.4s;
   z-index: 1;
-  pointer-events: none;
-}
-
-.movie-card:hover .movie-poster {
-  box-shadow: var(--infuse-shadow-glow), var(--infuse-shadow-lg);
 }
 
 .movie-card:hover .movie-poster::before {
@@ -626,36 +714,24 @@ function handlePosterError(event) {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform var(--infuse-transition-slow);
+  transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 .movie-card:hover .poster-image {
-  transform: scale(1.05);
-}
-
-.poster-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 64px;
-  color: var(--infuse-text-muted);
-  background: linear-gradient(145deg, var(--infuse-bg-tertiary) 0%, var(--infuse-bg-hover) 100%);
+  transform: scale(1.08);
 }
 
 .poster-overlay {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(6, 10, 26, 0.02) 0%, rgba(6, 10, 26, 0.66) 58%, rgba(6, 10, 26, 0.98) 100%),
-    radial-gradient(circle at top right, rgba(34, 246, 255, 0.18), transparent 36%);
+  background: linear-gradient(180deg, transparent 40%, rgba(6, 10, 26, 0.9) 100%);
   opacity: 0;
-  transition: opacity var(--infuse-transition-normal);
+  transition: opacity 0.3s;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 20px;
+  padding: 24px;
+  z-index: 2;
 }
 
 .movie-card:hover .poster-overlay {
@@ -663,79 +739,59 @@ function handlePosterError(event) {
 }
 
 .movie-actions {
-  transform: translateY(20px);
-  opacity: 0;
-  transition: all var(--infuse-transition-normal);
+  transform: translateY(10px);
+  transition: transform 0.3s;
 }
 
 .movie-card:hover .movie-actions {
   transform: translateY(0);
-  opacity: 1;
 }
 
 .action-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 24px;
+  padding: 10px 20px;
   border-radius: 100px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--infuse-transition-fast);
+  transition: all 0.2s;
   border: none;
 }
 
 .action-btn.primary {
-  background: linear-gradient(135deg, rgba(34,246,255,0.92), rgba(255,43,214,0.9));
+  background: var(--infuse-accent);
   color: #07101a;
 }
 
 .action-btn.primary:hover {
   background: var(--infuse-accent-hover);
-  box-shadow: var(--infuse-shadow-glow);
+  box-shadow: 0 0 15px var(--infuse-accent);
 }
 
 .action-btn.secondary {
-  background: rgba(8, 16, 38, 0.66);
-  color: var(--infuse-text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(119, 247, 255, 0.14);
-}
-
-.action-btn.secondary:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .subtitle-badge {
   position: absolute;
   top: 12px;
   right: 12px;
-  min-width: 32px;
-  height: 32px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
   font-weight: 700;
-  background: rgba(255, 43, 214, 0.86);
+  background: rgba(255, 43, 214, 0.8);
   color: white;
-  backdrop-filter: blur(10px);
-  padding: 0 10px;
-  white-space: nowrap;
-  box-shadow: 0 0 18px rgba(255, 43, 214, 0.18);
+  z-index: 3;
 }
 
 .subtitle-badge.has {
-  background: rgba(34, 246, 255, 0.84);
+  background: rgba(34, 246, 255, 0.8);
   color: #07101a;
-  box-shadow: 0 0 18px rgba(34, 246, 255, 0.18);
 }
 
 .movie-info {
@@ -752,8 +808,6 @@ function handlePosterError(event) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-height: 2.8em;
 }
 
 .movie-meta {
@@ -762,154 +816,157 @@ function handlePosterError(event) {
 }
 
 .meta-item {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--infuse-text-secondary);
-  background: rgba(11, 18, 42, 0.76);
-  padding: 4px 10px;
-  border-radius: 100px;
-  font-weight: 500;
-  border: 1px solid rgba(119, 247, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
-/* 搜索对话框样式 */
-.search-dialog-content {
-  min-height: 400px;
+/* 对话框通用样式 */
+:deep(.infuse-dialog) {
+  background: var(--infuse-bg-secondary);
+  border-radius: 20px;
 }
 
 .movie-info-header {
   display: flex;
   gap: 20px;
-  padding: 20px;
-  background: rgba(10, 16, 38, 0.72);
-  border-radius: var(--infuse-radius-lg);
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
   margin-bottom: 24px;
-  border: 1px solid var(--infuse-border);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
 .header-poster {
-  width: 80px;
-  height: 120px;
-  border-radius: var(--infuse-radius-md);
+  width: 100px;
+  border-radius: 8px;
   overflow: hidden;
-  flex-shrink: 0;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.3);
 }
 
 .header-poster img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.header-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  height: auto;
 }
 
 .header-info h3 {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
-  color: var(--infuse-text-primary);
   margin-bottom: 8px;
 }
 
-.header-info p {
+.filename-text {
   font-size: 13px;
-  color: var(--infuse-text-tertiary);
+  color: var(--infuse-text-muted);
   margin-bottom: 12px;
+  word-break: break-all;
 }
 
-.header-meta {
-  display: flex;
-  gap: 12px;
-}
-
-.header-meta span {
-  font-size: 13px;
-  color: var(--infuse-text-secondary);
-  background: var(--infuse-bg-hover);
+.meta-pill {
   padding: 4px 12px;
-  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  font-size: 12px;
+  margin-right: 8px;
 }
 
-.search-results {
-  min-height: 300px;
+/* 响应式 */
+@media (max-width: 768px) {
+  .movies-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+  }
+  .toolbar {
+    flex-direction: column;
+  }
+  .search-box {
+    width: 100%;
+  }
 }
 
-.empty-results {
+/* 扫描确认对话框样式 */
+:deep(.scan-modal) {
+  max-width: 420px !important;
+}
+
+:deep(.scan-confirm-content) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  color: var(--infuse-text-muted);
+  text-align: center;
 }
 
-.empty-icon {
+:deep(.scan-icon-pulse) {
   width: 80px;
   height: 80px;
+  background: radial-gradient(circle, rgba(34, 246, 255, 0.15) 0%, transparent 70%);
   border-radius: 50%;
-  background: var(--infuse-bg-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--infuse-accent);
   margin-bottom: 20px;
+  animation: modal-pulse 2s infinite;
 }
 
-.empty-icon .el-icon {
-  font-size: 36px;
+@keyframes modal-pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 246, 255, 0.4); }
+  70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(34, 246, 255, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 246, 255, 0); }
 }
 
+:deep(.infuse-btn-scan-main) {
+  background: linear-gradient(135deg, #22f6ff 0%, #00a8ff 100%) !important;
+  border: none !important;
+  color: #04111c !important;
+  font-weight: 700 !important;
+  padding: 12px 32px !important;
+  border-radius: 100px !important;
+  width: 100% !important;
+}
+
+:deep(.infuse-btn-cancel-main) {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: var(--infuse-text-muted) !important;
+  margin-top: 10px !important;
+  width: 100% !important;
+}
+
+/* 字幕项样式 */
 .subtitle-item {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px 20px;
-  background: rgba(10, 16, 38, 0.74);
-  border-radius: var(--infuse-radius-md);
-  margin-bottom: 12px;
-  border: 1px solid var(--infuse-border);
-  transition: all var(--infuse-transition-fast);
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
 }
 
 .subtitle-item:hover {
-  border-color: var(--infuse-border-hover);
-  background: rgba(18, 29, 62, 0.88);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--infuse-accent);
 }
 
 .subtitle-rank {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
   font-weight: 700;
-  flex-shrink: 0;
+  font-size: 13px;
 }
 
-.subtitle-rank.excellent {
-  background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
-}
-
-.subtitle-rank.good {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-}
-
-.subtitle-rank.fair {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-}
-
-.subtitle-rank.poor {
-  background: rgba(107, 114, 128, 0.15);
-  color: #6b7280;
-}
+.subtitle-rank.excellent { background: rgba(52, 199, 89, 0.2); color: #34c759; }
+.subtitle-rank.good { background: rgba(0, 113, 227, 0.2); color: #0071e3; }
+.subtitle-rank.fair { background: rgba(255, 149, 0, 0.2); color: #ff9500; }
+.subtitle-rank.poor { background: rgba(255, 59, 48, 0.2); color: #ff3b30; }
 
 .subtitle-info {
   flex: 1;
@@ -918,8 +975,7 @@ function handlePosterError(event) {
 
 .subtitle-title {
   font-weight: 600;
-  color: var(--infuse-text-primary);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -927,380 +983,40 @@ function handlePosterError(event) {
 
 .subtitle-meta {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.source-tag, .lang-tag {
+  gap: 10px;
   font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 100px;
-  text-transform: uppercase;
 }
 
 .source-tag {
-  background: var(--infuse-accent-glow);
   color: var(--infuse-accent);
+  font-weight: 700;
 }
 
-.source-tag.shooter {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-}
-
-.source-tag.assrt {
-  background: rgba(139, 92, 246, 0.15);
-  color: #8b5cf6;
-}
-
-.source-tag.opensubtitles {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-}
-
-.lang-tag {
-  background: var(--infuse-bg-hover);
-  color: var(--infuse-text-secondary);
-}
-
-.loading-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (max-width: 768px) {
-  .toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 14px;
-  }
-
-  .search-box {
-    width: 100%;
-  }
-
-  .filter-group {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .filter-group > * {
-    flex: 1 1 100%;
-  }
-
-  .movies-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-  }
-
-  .movie-card {
-    min-width: 0;
-  }
-
-  .movie-title {
-    font-size: 14px;
-  }
-
-  .movie-info-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .header-poster {
-    width: 112px;
-  }
-
-  .subtitle-item,
-  .subtitle-file-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .subtitle-rank,
-  .file-icon {
-    width: 48px;
-    height: 48px;
-  }
-
-  .action-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-}
-
-@media (max-width: 560px) {
-  .movies-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .movie-poster {
-    aspect-ratio: 16 / 9;
-  }
-}
-
-/* 字幕管理对话框样式 */
-.manage-dialog-content {
-  min-height: 400px;
-}
-
-.subtitles-section {
-  margin-top: 24px;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.section-header h4 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--infuse-text-primary);
-}
-
-.subtitle-count {
-  font-size: 13px;
-  color: var(--infuse-text-secondary);
-  background: var(--infuse-bg-tertiary);
-  padding: 4px 12px;
-  border-radius: 100px;
-}
-
-.loading-subtitles {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 60px 20px;
-  color: var(--infuse-text-muted);
-}
-
-.empty-subtitles {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  color: var(--infuse-text-muted);
-}
-
-.empty-subtitles .el-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-}
-
-.empty-subtitles p {
-  margin-bottom: 20px;
-}
-
-.subtitles-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.subtitle-file-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
-  background: var(--infuse-bg-tertiary);
-  border-radius: var(--infuse-radius-md);
-  border: 1px solid var(--infuse-border);
-  transition: all var(--infuse-transition-fast);
-}
-
-.subtitle-file-item:hover {
-  border-color: var(--infuse-border-hover);
-  background: var(--infuse-bg-hover);
-}
-
-.file-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: var(--infuse-accent-glow);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.file-icon .el-icon {
-  font-size: 24px;
-  color: var(--infuse-accent);
-}
-
-.file-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.file-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--infuse-text-primary);
-  margin-bottom: 6px;
-  word-break: break-all;
-}
-
-.file-meta {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.format-tag {
-  font-size: 11px;
-  color: var(--infuse-text-tertiary);
-  background: var(--infuse-bg-hover);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.size-tag {
-  font-size: 11px;
-  color: var(--infuse-text-tertiary);
-  background: var(--infuse-bg-hover);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.action-btn.danger {
-  background: rgba(239, 68, 68, 0.9);
-  color: white;
-}
-
-.action-btn.danger:hover {
-  background: rgba(239, 68, 68, 1);
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
-}
-
-/* SubHD 文件名显示样式 */
 .subhd-filename {
   display: flex;
   align-items: center;
   gap: 6px;
   margin: 6px 0;
   padding: 6px 10px;
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(34, 246, 255, 0.05);
   border-radius: 6px;
-  border-left: 3px solid #3b82f6;
-}
-
-.subhd-filename .el-icon {
-  font-size: 14px;
-  color: #3b82f6;
-  flex-shrink: 0;
+  border-left: 3px solid var(--infuse-accent);
 }
 
 .subhd-filename .filename-text {
-  font-size: 12px;
-  color: var(--infuse-text-secondary);
-  white-space: nowrap;
+  font-size: 11px;
+  color: var(--infuse-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: 'SF Mono', Monaco, monospace;
 }
 
-.subhd-summary {
-  margin-bottom: 8px;
-  font-size: 12px;
-  color: var(--infuse-text-secondary);
-  line-height: 1.5;
+.action-btn.danger {
+  background: rgba(255, 59, 48, 0.15);
+  color: #ff3b30;
 }
 
-.subhd-meta-tag {
-  padding: 4px 10px;
-  border-radius: 100px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #c084fc;
-  background: rgba(192, 132, 252, 0.14);
-  border: 1px solid rgba(192, 132, 252, 0.2);
-}
-
-.source-tag.subhd {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-}
-
-/* 扫描确认对话框样式 */
-:deep(.scan-confirm-btn) {
-  background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%) !important;
-  border-color: #ff6b35 !important;
-  color: white !important;
-  font-weight: 600;
-  padding: 12px 28px !important;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-:deep(.scan-confirm-btn:hover) {
-  background: linear-gradient(135deg, #ff7b45 0%, #ff9555 100%) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
-}
-
-:deep(.scan-confirm-btn.el-button--primary.is-loading) {
-  background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%) !important;
-}
-
-:deep(.infuse-btn-cancel) {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: var(--infuse-text-secondary) !important;
-}
-
-:deep(.infuse-btn-cancel:hover) {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: var(--infuse-text-primary) !important;
-}
-
-/* 对话框背景美化 */
-:deep(.el-message-box) {
-  background: var(--infuse-bg-card) !important;
-  border: 1px solid var(--infuse-border) !important;
-  border-radius: 16px !important;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
-  backdrop-filter: blur(20px) !important;
-}
-
-:deep(.el-message-box__title) {
-  color: var(--infuse-text-primary) !important;
-  font-weight: 700;
-}
-
-:deep(.el-message-box__message) {
-  color: var(--infuse-text-secondary) !important;
-  line-height: 1.6;
-}
-
-:deep(.el-message-box__headerbtn .el-message-box__close) {
-  color: var(--infuse-text-muted) !important;
-}
-
-:deep(.el-message-box__headerbtn:hover .el-message-box__close) {
-  color: var(--infuse-text-primary) !important;
+.action-btn.danger:hover {
+  background: #ff3b30;
+  color: white;
 }
 </style>
