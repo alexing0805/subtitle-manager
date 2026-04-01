@@ -412,7 +412,7 @@ function getStatusText(status) {
 
 /* 黑洞效果 */
 .mouse-glow {
-  position: absolute;
+  position: fixed;
   width: 280px;
   height: 280px;
   background: radial-gradient(circle, rgba(34, 246, 255, 0.22) 0%, transparent 70%);

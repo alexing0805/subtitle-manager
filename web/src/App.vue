@@ -592,7 +592,7 @@ body::before {
 /* --- Global Polish --- */
 @keyframes shimmer {
   0% { transform: translateX(-100%) skewX(-15deg); }
-  100% { transform: translateX(200%) skewX(-15deg); }
+  100% { transform: translateX(300%) skewX(-15deg); }
 }
 
 .infuse-card {
@@ -605,21 +605,25 @@ body::before {
   position: absolute;
   top: 0;
   left: 0;
-  width: 60%;
+  width: 100%;
   height: 100%;
   background: linear-gradient(
     90deg,
-    transparent,
-    rgba(255, 255, 255, 0.04),
-    transparent
+    transparent 0%,
+    rgba(255, 255, 255, 0.12) 40%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0.12) 60%,
+    transparent 100%
   );
-  transition: 0.5s;
+  transition: opacity 0.2s ease;
   z-index: 1;
   pointer-events: none;
+  opacity: 0;
 }
 
 .infuse-card:hover::after {
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 0.8s ease-out forwards;
+  opacity: 1;
 }
 
 /* Better Text Rendering */

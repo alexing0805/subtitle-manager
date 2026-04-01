@@ -52,17 +52,17 @@ export function useAmbientEffects(options = {}) {
       : 'translate3d(0, 0, 0)'
   }))
 
+  // Use position:fixed with viewport coords directly — avoids container offset math
   const mouseGlowStyle = computed(() => ({
-    left: `${pointer.x - 140}px`,
-    top: `${pointer.y - 140}px`,
+    left: `${pointer.x}px`,
+    top: `${pointer.y}px`,
     opacity: pointer.active ? 1 : 0
   }))
 
   function handleMouseMove(event) {
     if (!containerRef.value) return
-    const rect = containerRef.value.getBoundingClientRect()
-    pointer.x = event.clientX - rect.left
-    pointer.y = event.clientY - rect.top
+    pointer.x = event.clientX
+    pointer.y = event.clientY
     pointer.active = true
   }
 
