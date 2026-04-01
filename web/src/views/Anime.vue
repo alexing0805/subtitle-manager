@@ -1496,14 +1496,38 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 
   .display-mode-toggle {
     width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
-  .display-mode-toggle :deep(.el-radio-button),
+  .display-mode-toggle :deep(.el-radio-button) {
+    width: 100%;
+  }
+
   .display-mode-toggle :deep(.el-radio-button__inner),
   .filter-group .el-button,
   .episode-actions .el-button {
     width: 100%;
+    min-width: 0;
     margin-left: 0 !important;
+  }
+
+  .display-mode-compact .shows-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .display-mode-compact .show-poster {
+    aspect-ratio: 2 / 3;
+  }
+
+  .display-mode-wide .shows-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .display-mode-wide .show-poster {
+    aspect-ratio: 16 / 9;
   }
 
   .detail-header {

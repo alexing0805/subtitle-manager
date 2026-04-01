@@ -843,11 +843,35 @@ function handlePosterError(event) {
 
   .display-mode-toggle {
     width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
-  .display-mode-toggle :deep(.el-radio-button),
+  .display-mode-toggle :deep(.el-radio-button) {
+    width: 100%;
+  }
+
   .display-mode-toggle :deep(.el-radio-button__inner) {
-    width: 50%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .display-mode-compact .movies-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .display-mode-compact .movie-poster {
+    aspect-ratio: 2 / 3;
+  }
+
+  .display-mode-wide .movies-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .display-mode-wide .movie-poster {
+    aspect-ratio: 16 / 9;
   }
 }
 
