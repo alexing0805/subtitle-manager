@@ -671,8 +671,11 @@ body::before {
   opacity: 1;
 }
 
-/* 强制隐藏所有组件的小手光标 */
-a, button, .el-button, .el-select, [role="button"], .action-card, .stat-card, .clickable {
+/* 全局隐藏原生鼠标，避免子页面 scoped 样式重新设置 pointer/not-allowed */
+html,
+body,
+#app,
+#app * {
   cursor: none !important;
 }
 
