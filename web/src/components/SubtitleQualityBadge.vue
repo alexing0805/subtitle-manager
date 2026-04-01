@@ -7,13 +7,13 @@
   >
     <template #content>
       <div class="badge-tooltip">
+        <div class="tooltip-head">
+          <span class="tooltip-tone" :class="toneClass">{{ scoreTierLabel }}</span>
+          <strong>{{ scorePercent }}% 匹配</strong>
+        </div>
         <div class="tooltip-row">
           <span>来源</span>
           <strong>{{ result.source || '未知' }}</strong>
-        </div>
-        <div class="tooltip-row">
-          <span>匹配度</span>
-          <strong>{{ scoreLabel }}</strong>
         </div>
         <div class="tooltip-row">
           <span>票数</span>
@@ -21,7 +21,7 @@
         </div>
         <div class="tooltip-row">
           <span>下载量</span>
-          <strong>{{ formatMetric(result.downloadCount) }}</strong>
+          <strong>{{ formatMetric(downloadCount) }}</strong>
         </div>
         <div class="tooltip-row" v-if="result.rating !== null && result.rating !== undefined">
           <span>站点评分</span>
@@ -30,19 +30,31 @@
       </div>
     </template>
 
-    <div class="quality-badges">
-      <span class="quality-pill score-pill" :class="toneClass">
-        <small>SCORE</small>
-        <strong>{{ scoreLabel }}</strong>
-      </span>
-      <span v-if="result.votes" class="quality-pill metric-pill">
-        <small>票</small>
-        <strong>{{ compactMetric(result.votes) }}</strong>
-      </span>
-      <span v-if="result.downloadCount" class="quality-pill metric-pill">
-        <small>下</small>
-        <strong>{{ compactMetric(result.downloadCount) }}</strong>
-      </span>
+    <div class="quality-badges" :class="{ compact }">
+      <div class="quality-score-card" :class="toneClass">
+        <div class="score-head">
+          <small>匹配度</small>
+          <span>{{ scoreTierLabel }}</span>
+        </div>
+        <div class="score-main">
+          <strong>{{ scorePercent }}</strong>
+          <span>%</span>
+        </div>
+        <div class="score-track">
+          <div class="score-fill" :style="{ width: `${scorePercent}%` }"></div>
+        </div>
+      </div>
+
+      <div class="quality-metrics">
+        <span class="metric-pill">
+          <small>票数</small>
+          <strong>{{ compactMetric(result.votes) }}</strong>
+        </span>
+        <span class="metric-pill">
+          <small>下载</small>
+          <strong>{{ compactMetric(downloadCount) }}</strong>
+        </span>
+      </div>
     </div>
   </el-tooltip>
 </template>
@@ -54,17 +66,28 @@ const props = defineProps({
   result: {
     type: Object,
     required: true
+  },
+  compact: {
+    type: Boolean,
+    default: false
   }
 })
 
+const normalizedScore = computed(() => Number(props.result?.score || 0))
+const scorePercent = computed(() => Math.max(0, Math.min(100, Math.round(normalizedScore.value * 100))))
+const downloadCount = computed(() => props.result?.downloadCount ?? props.result?.download_count ?? 0)
+
 const toneClass = computed(() => {
-  const score = Number(props.result?.score || 0)
-  if (score >= 0.8) return 'tone-high'
-  if (score >= 0.6) return 'tone-mid'
+  if (normalizedScore.value >= 0.8) return 'tone-high'
+  if (normalizedScore.value >= 0.6) return 'tone-mid'
   return 'tone-low'
 })
 
-const scoreLabel = computed(() => `${Math.round(Number(props.result?.score || 0) * 100)}`)
+const scoreTierLabel = computed(() => {
+  if (normalizedScore.value >= 0.8) return '高'
+  if (normalizedScore.value >= 0.6) return '中'
+  return '低'
+})
 
 function compactMetric(value) {
   const numeric = Number(value || 0)
@@ -82,56 +105,171 @@ function formatMetric(value) {
 <style scoped>
 .quality-badges {
   display: flex;
-  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.quality-badges.compact {
   gap: 8px;
   margin-top: 10px;
 }
 
-.quality-pill {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  min-height: 28px;
-  padding: 5px 9px;
-  border-radius: 999px;
+.quality-score-card {
+  min-width: 138px;
+  padding: 10px 12px;
+  border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.quality-pill small {
+.quality-badges.compact .quality-score-card {
+  min-width: 122px;
+  padding: 8px 10px;
+}
+
+.score-head,
+.quality-metrics {
+  display: flex;
+}
+
+.score-head {
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.score-head small,
+.metric-pill small {
   font-size: 10px;
   letter-spacing: 0.12em;
   color: rgba(244, 247, 255, 0.56);
+  text-transform: uppercase;
 }
 
-.quality-pill strong {
-  font-size: 13px;
+.score-head span {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.score-main {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.score-main strong {
+  font-size: 24px;
   line-height: 1;
-  color: var(--infuse-text-primary);
 }
 
-.score-pill.tone-high {
-  background: linear-gradient(135deg, rgba(52, 199, 89, 0.22), rgba(46, 160, 67, 0.14));
-  border-color: rgba(52, 199, 89, 0.35);
+.quality-badges.compact .score-main strong {
+  font-size: 20px;
 }
 
-.score-pill.tone-mid {
-  background: linear-gradient(135deg, rgba(255, 204, 0, 0.22), rgba(255, 149, 0, 0.14));
-  border-color: rgba(255, 204, 0, 0.34);
+.score-main span {
+  font-size: 12px;
+  color: var(--infuse-text-secondary);
 }
 
-.score-pill.tone-low {
-  background: linear-gradient(135deg, rgba(255, 69, 58, 0.24), rgba(255, 59, 48, 0.16));
-  border-color: rgba(255, 69, 58, 0.34);
+.score-track {
+  height: 6px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.score-fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.quality-metrics {
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
 }
 
 .metric-pill {
-  background: rgba(255, 255, 255, 0.05);
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 72px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.quality-badges.compact .metric-pill {
+  min-width: 64px;
+  padding: 7px 9px;
+}
+
+.metric-pill strong {
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: 1.1;
+  color: var(--infuse-text-primary);
+}
+
+.quality-score-card.tone-high {
+  background: linear-gradient(135deg, rgba(52, 199, 89, 0.22), rgba(46, 160, 67, 0.12));
+  border-color: rgba(52, 199, 89, 0.34);
+  color: #d8ffe4;
+}
+
+.quality-score-card.tone-high .score-fill,
+.tooltip-tone.tone-high {
+  background: linear-gradient(90deg, #34c759, #7cd992);
+}
+
+.quality-score-card.tone-mid {
+  background: linear-gradient(135deg, rgba(255, 204, 0, 0.22), rgba(255, 149, 0, 0.12));
+  border-color: rgba(255, 204, 0, 0.34);
+  color: #fff2c0;
+}
+
+.quality-score-card.tone-mid .score-fill,
+.tooltip-tone.tone-mid {
+  background: linear-gradient(90deg, #ffcc00, #ff9500);
+}
+
+.quality-score-card.tone-low {
+  background: linear-gradient(135deg, rgba(255, 69, 58, 0.24), rgba(255, 59, 48, 0.14));
+  border-color: rgba(255, 69, 58, 0.34);
+  color: #ffd4cf;
+}
+
+.quality-score-card.tone-low .score-fill,
+.tooltip-tone.tone-low {
+  background: linear-gradient(90deg, #ff453a, #ff8a7a);
 }
 
 .badge-tooltip {
-  min-width: 180px;
+  min-width: 190px;
+}
+
+.tooltip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.tooltip-tone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  color: #06111b;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .tooltip-row {
@@ -146,12 +284,20 @@ function formatMetric(value) {
 }
 
 @media (max-width: 768px) {
-  .quality-badges {
-    gap: 6px;
+  .quality-badges,
+  .quality-badges.compact {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .quality-pill {
-    padding: 4px 8px;
+  .quality-score-card,
+  .quality-badges.compact .quality-score-card {
+    min-width: 0;
+  }
+
+  .quality-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

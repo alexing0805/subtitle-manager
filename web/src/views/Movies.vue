@@ -142,11 +142,12 @@
             class="subtitle-item"
           >
             <div class="subtitle-rank" :class="getRankClass(result.score)">
-              {{ (result.score * 100).toFixed(0) }}%
+              <small>匹配</small>
+              <strong>{{ (result.score * 100).toFixed(0) }}%</strong>
             </div>
             <div class="subtitle-info">
               <div class="subtitle-title">{{ result.title }}</div>
-              <SubtitleQualityBadge :result="result" />
+              <SubtitleQualityBadge :result="result" compact />
               <!-- SubHD 文件名显示 -->
               <div v-if="result.source === 'SubHD' && shouldShowSubhdFilename(result)" class="subhd-filename">
                 <el-icon><Document /></el-icon>
@@ -986,14 +987,28 @@ function handlePosterError(event) {
 }
 
 .subtitle-rank {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  width: 72px;
+  min-width: 72px;
+  min-height: 72px;
+  border-radius: 18px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   font-weight: 700;
   font-size: 13px;
+}
+
+.subtitle-rank small {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  opacity: 0.72;
+}
+
+.subtitle-rank strong {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .subtitle-rank.excellent { background: rgba(52, 199, 89, 0.2); color: #34c759; }

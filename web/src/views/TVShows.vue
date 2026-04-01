@@ -274,11 +274,12 @@
             class="subtitle-item"
           >
             <div class="subtitle-rank" :class="getRankClass(result.score)">
-              {{ (result.score * 100).toFixed(0) }}%
+              <small>匹配</small>
+              <strong>{{ (result.score * 100).toFixed(0) }}%</strong>
             </div>
             <div class="subtitle-info">
               <div class="subtitle-title">{{ result.title }}</div>
-              <SubtitleQualityBadge :result="result" />
+              <SubtitleQualityBadge :result="result" compact />
               <!-- SubHD 文件名显示 -->
               <div v-if="result.source === 'SubHD' && shouldShowSubhdFilename(result)" class="subhd-filename">
                 <el-icon><Document /></el-icon>
@@ -1245,6 +1246,109 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   text-overflow: ellipsis;
 }
 
+.subtitle-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: rgba(10, 16, 38, 0.74);
+  border-radius: var(--infuse-radius-md);
+  border: 1px solid var(--infuse-border);
+  transition: all 0.2s;
+}
+
+.subtitle-item:hover {
+  border-color: var(--infuse-accent);
+  background: rgba(18, 29, 62, 0.88);
+}
+
+.subtitle-rank {
+  width: 72px;
+  min-width: 72px;
+  min-height: 72px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.subtitle-rank small {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  opacity: 0.72;
+}
+
+.subtitle-rank strong {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.subtitle-rank.excellent {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.subtitle-rank.good {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.subtitle-rank.fair {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.subtitle-rank.poor {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+}
+
+.subtitle-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.subtitle-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--infuse-text-primary);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subtitle-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.subhd-filename,
+.subhd-summary {
+  margin-top: 10px;
+}
+
+.subhd-filename {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--infuse-text-muted);
+}
+
+.subhd-summary {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--infuse-text-secondary);
+}
+
 /* 扫描确认对话框样式 */
 :deep(.scan-modal) {
   max-width: 420px !important;
@@ -1370,6 +1474,17 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
     width: 100%;
     max-width: 200px;
     margin: 0 auto;
+  }
+
+  .subtitle-item,
+  .episode-info-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .subtitle-rank {
+    width: 100%;
+    min-height: 56px;
   }
 }
 </style>
