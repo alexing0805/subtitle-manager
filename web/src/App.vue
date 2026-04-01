@@ -43,8 +43,8 @@ const mobileMenuOpen = ref(false)
 const appPointer = reactive({ x: 0, y: 0, active: false })
 
 const appGlowStyle = computed(() => ({
-  left: `${appPointer.x - 140}px`,
-  top: `${appPointer.y - 140}px`,
+  left: `${appPointer.x}px`,
+  top: `${appPointer.y}px`,
   opacity: appPointer.active ? 1 : 0
 }))
 
@@ -651,16 +651,14 @@ body::before {
 /* App-level mouse glow — always on top, viewport-anchored */
 .app-mouse-glow {
   position: fixed;
-  width: 280px;
-  height: 280px;
-  margin-left: -140px;
-  margin-top: -140px;
-  background: radial-gradient(circle, rgba(34, 246, 255, 0.22) 0%, transparent 70%);
+  width: 20px;
+  height: 20px;
+  background: radial-gradient(circle, rgba(34, 246, 255, 1) 0%, rgba(34, 246, 255, 0.5) 50%, transparent 100%);
   border-radius: 50%;
   pointer-events: none;
   z-index: 9999;
+  transform: translate(-50%, -50%);
   transition: opacity 0.3s ease;
-  filter: blur(20px);
 }
 
 /* Better Text Rendering */
