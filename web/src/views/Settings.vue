@@ -144,6 +144,21 @@
         <h3 class="section-title">高级设置</h3>
         
         <el-form :model="settings" label-position="top">
+          <el-form-item label="主题模式">
+            <div class="theme-mode-control">
+              <el-radio-group v-model="themeMode" class="theme-mode-toggle">
+                <el-radio-button
+                  v-for="option in themeOptions"
+                  :key="option.value"
+                  :label="option.value"
+                >
+                  {{ option.label }}
+                </el-radio-button>
+              </el-radio-group>
+              <div class="form-hint">当前生效：{{ resolvedTheme === 'oled' ? '真黑色' : '深灰' }}，切换会平滑过渡 300ms</div>
+            </div>
+          </el-form-item>
+
           <el-form-item>
             <el-checkbox v-model="settings.plexNamingFormat">使用 PLEX 字幕命名格式</el-checkbox>
             <div class="form-hint">字幕文件命名为: 视频文件名.zh-cn.srt</div>
@@ -224,9 +239,11 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useThemeMode } from '../composables/useThemeMode'
 
 const saving = ref(false)
 const testingTMDB = ref(false)
+const { themeMode, resolvedTheme, themeOptions } = useThemeMode()
 
 const settings = ref({
   movieDir: '/movies',
@@ -443,6 +460,29 @@ async function testTMDBApi() {
   align-items: flex-start;
 }
 
+.theme-mode-control {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.theme-mode-toggle {
+  width: fit-content;
+}
+
+.theme-mode-toggle :deep(.el-radio-button__inner) {
+  min-width: 108px;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--infuse-text-secondary);
+}
+
+.theme-mode-toggle :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: linear-gradient(135deg, rgba(34, 246, 255, 0.88), rgba(255, 43, 214, 0.8));
+  color: #04111c;
+  border-color: transparent;
+}
+
 @media (max-width: 768px) {
   .settings-section {
     padding: 18px;
@@ -461,6 +501,10 @@ async function testTMDBApi() {
   .tmdb-api-input {
     flex-direction: column;
     gap: 10px;
+  }
+
+  .theme-mode-toggle {
+    width: 100%;
   }
 }
 </style>

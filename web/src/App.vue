@@ -35,9 +35,11 @@ import { computed, reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Menu } from '@element-plus/icons-vue'
 import Sidebar from './components/Sidebar.vue'
+import { useThemeMode } from './composables/useThemeMode'
 
 const route = useRoute()
 const mobileMenuOpen = ref(false)
+useThemeMode()
 
 // App-level mouse glow tracking
 const appPointer = reactive({ x: 0, y: 0, active: false })
@@ -196,6 +198,7 @@ body {
   line-height: 1.5;
   overflow-x: hidden;
   cursor: none !important;
+  transition: background-color 0.3s ease, opacity 0.3s ease;
 }
 
 body::before {
@@ -215,6 +218,7 @@ body::before {
   background: var(--infuse-bg-primary);
   position: relative;
   isolation: isolate;
+  transition: background-color 0.3s ease, opacity 0.3s ease;
 }
 
 .mobile-topbar {
@@ -227,6 +231,7 @@ body::before {
   overflow: hidden;
   pointer-events: none;
   z-index: -1;
+  transition: opacity 0.3s ease, background-color 0.3s ease;
 }
 
 .bg-grid,
@@ -235,6 +240,17 @@ body::before {
 .bg-beam {
   position: absolute;
   inset: 0;
+  transition: opacity 0.3s ease, background-color 0.3s ease;
+}
+
+:root[data-theme-resolved='oled'] {
+  --infuse-bg-primary: #000000;
+  --infuse-bg-secondary: rgba(0, 0, 0, 0.92);
+  --infuse-bg-tertiary: rgba(0, 0, 0, 0.96);
+  --infuse-bg-card: rgba(0, 0, 0, 0.82);
+  --infuse-bg-hover: rgba(8, 8, 8, 0.98);
+  --infuse-gradient-overlay: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.78) 48%, rgba(0, 0, 0, 0.98) 100%);
+  --infuse-gradient-card: linear-gradient(145deg, rgba(8, 8, 8, 0.9) 0%, rgba(0, 0, 0, 0.96) 100%);
 }
 
 .bg-grid {
