@@ -55,7 +55,45 @@ const appGlowStyle = computed(() => ({
 }))
 
 function isInteractive(el) {
-  return el?.closest('a, button, [role="button"], .action-card, .stat-card, .clickable, [style*="cursor: pointer"], .el-button, .infuse-button')
+  if (!el) return false
+
+  const interactiveSelectors = [
+    'a',
+    'button',
+    '[role="button"]',
+    '[tabindex]:not([tabindex="-1"])',
+    '[disabled]',
+    '.action-card',
+    '.stat-card',
+    '.clickable',
+    '.el-button',
+    '.infuse-button',
+    '.scan-btn',
+    '.movie-card',
+    '.show-card',
+    '.season-tab',
+    '.action-btn',
+    '.apple-button',
+    '[style*="cursor: pointer"]',
+    '[style*="cursor:pointer"]',
+    '[style*="cursor: not-allowed"]',
+    '[style*="cursor:not-allowed"]'
+  ].join(', ')
+
+  if (el.closest(interactiveSelectors)) {
+    return true
+  }
+
+  let current = el
+  while (current && current !== document.body) {
+    const { cursor } = window.getComputedStyle(current)
+    if (cursor === 'pointer' || cursor === 'not-allowed') {
+      return true
+    }
+    current = current.parentElement
+  }
+
+  return false
 }
 
 function onDocMouseMove(e) {
