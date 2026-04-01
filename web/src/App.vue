@@ -41,21 +41,36 @@ const mobileMenuOpen = ref(false)
 
 // App-level mouse glow tracking
 const appPointer = reactive({ x: 0, y: 0, active: false })
+const isOverInteractive = ref(false)
 
-const appGlowStyle = computed(() => ({
-  left: `${appPointer.x}px`,
-  top: `${appPointer.y}px`,
-  opacity: appPointer.active ? 1 : 0
-}))
+const appGlowStyle = computed(() => {
+  const base = {
+    left: `${appPointer.x}px`,
+    top: `${appPointer.y}px`,
+    opacity: appPointer.active ? 1 : 0,
+    width: isOverInteractive.value ? '36px' : '20px',
+    height: isOverInteractive.value ? '36px' : '20px',
+    background: isOverInteractive.value
+      ? 'radial-gradient(circle, rgba(255, 107, 53, 0.9) 0%, rgba(255, 107, 53, 0.4) 60%, transparent 100%)'
+      : 'radial-gradient(circle, rgba(34, 246, 255, 1) 0%, rgba(34, 246, 255, 0.5) 50%, transparent 100%)'
+  }
+  return base
+})
+
+function isInteractive(el) {
+  return el.closest('a, button, [role="button"], input, select, textarea, .action-card, .stat-card, .clickable')
+}
 
 function handleAppMouseMove(e) {
   appPointer.x = e.clientX
   appPointer.y = e.clientY
   appPointer.active = true
+  isOverInteractive.value = !!isInteractive(e.target)
 }
 
 function handleAppMouseLeave() {
   appPointer.active = false
+  isOverInteractive.value = false
 }
 
 const routeTitles = {
