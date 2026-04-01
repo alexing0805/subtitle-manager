@@ -158,6 +158,9 @@ class SubtitleResult:
     summary: Optional[str] = None
     release_type: Optional[str] = None
     meta_tags: List[str] = field(default_factory=list)
+    download_count: Optional[int] = None
+    votes: Optional[int] = None
+    rating: Optional[float] = None
 
 
 def normalize_release_text(text: str) -> str:

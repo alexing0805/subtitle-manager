@@ -100,6 +100,9 @@ class OpenSubtitlesSource(BaseSubtitleSource):
                                     download_url=file_info.get("file_id", ""),
                                     score=self._calculate_score(attributes, video_info),
                                     file_format=attributes.get("format", "srt"),
+                                    download_count=attributes.get("download_count"),
+                                    votes=attributes.get("votes"),
+                                    rating=attributes.get("ratings"),
                                 )
                             )
                         except Exception as exc:

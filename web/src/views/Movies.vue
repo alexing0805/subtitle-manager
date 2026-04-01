@@ -146,6 +146,7 @@
             </div>
             <div class="subtitle-info">
               <div class="subtitle-title">{{ result.title }}</div>
+              <SubtitleQualityBadge :result="result" />
               <!-- SubHD 文件名显示 -->
               <div v-if="result.source === 'SubHD' && shouldShowSubhdFilename(result)" class="subhd-filename">
                 <el-icon><Document /></el-icon>
@@ -276,6 +277,7 @@ import { useAmbientEffects } from '../composables/useAmbientEffects'
 import { useMediaDisplayMode } from '../composables/useMediaDisplayMode'
 import { buildScanConfirmHtml, createScanDialogOptions } from '../utils/scanDialog'
 import ScanVisualization from '../components/ScanVisualization.vue'
+import SubtitleQualityBadge from '../components/SubtitleQualityBadge.vue'
 
 const api = axios.create({
   baseURL: '/api',
@@ -448,7 +450,10 @@ async function handleDownload(result) {
         language: result.language,
         downloadUrl: result.downloadUrl,
         score: result.score,
-        filename: result.filename
+        filename: result.filename,
+        votes: result.votes,
+        downloadCount: result.downloadCount,
+        rating: result.rating
       }
     }
     await api.post(`/movies/${currentMovie.value.id}/download-subtitle`, requestData)

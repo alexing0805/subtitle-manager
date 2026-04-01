@@ -261,6 +261,9 @@ class SubtitleResult(BaseModel):
     source: str
     language: str
     score: float
+    votes: Optional[int] = None
+    downloadCount: Optional[int] = None
+    rating: Optional[float] = None
     downloadUrl: Optional[str] = None
     filename: Optional[str] = None  # SubHD 等源的字幕文件名
     summary: Optional[str] = None
@@ -352,6 +355,9 @@ def serialize_subtitle_result(result: Any) -> SubtitleResult:
         source=result.source,
         language=result.language,
         score=result.score,
+        votes=getattr(result, 'votes', None),
+        downloadCount=getattr(result, 'download_count', None),
+        rating=getattr(result, 'rating', None),
         downloadUrl=result.download_url,
         filename=getattr(result, 'filename', None),
         summary=getattr(result, 'summary', None),
