@@ -209,26 +209,12 @@ import {
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
-import axios from 'axios'
 import { useAmbientEffects } from '../composables/useAmbientEffects'
 import { buildScanConfirmHtml, createScanDialogOptions } from '../utils/scanDialog'
+import api from '../utils/api'
 
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
-
-const api = axios.create({
-  baseURL: '/api',
-  timeout: 30000
-})
-
-// Add API key to requests
-api.interceptors.request.use(config => {
-  const apiKey = localStorage.getItem('apiKey')
-  if (apiKey) {
-    config.headers['X-API-Key'] = apiKey
-  }
-  return config
-})
 
 const store = useSubtitleStore()
 
@@ -294,7 +280,22 @@ async function fetchActivities() {
     const response = await api.get('/recent-activity', {
       params: { limit: 10 }
     })
-    activities.value = response.data || []
+    const activityItems = Array.isArray(response.data)
+      ? response.data
+      : Array.isArray(response.data?.activities)
+        ? response.data.activities
+        : []
+
+    activities.value = activityItems
+      .filter(activity => activity && (activity.id || activity.title || activity.time))
+      .map((activity, index) => ({
+        id: activity.id || `activity-${index}-${activity.time || Date.now()}`,
+        type: activity.type || 'process',
+        title: activity.title || '未命名活动',
+        status: activity.status || 'processing',
+        time: activity.time || new Date().toISOString(),
+        source: activity.source || ''
+      }))
   } catch (error) {
     console.error('获取活动记录失败:', error)
     // 静默失败,使用空数组
@@ -376,13 +377,12 @@ function formatTime(time) {
 
 function getActivityIcon(type) {
   const icons = {
-    scan: 'Refresh',
-    download: 'Download',
-    upload: 'Upload',
-    process: 'Loading',
-    delete: 'Delete'
+    scan: Refresh,
+    download: Download,
+    upload: Upload,
+    process: Loading
   }
-  return icons[type] || 'InfoFilled'
+  return icons[type] || InfoFilled
 }
 
 function getActivityTagType(status) {

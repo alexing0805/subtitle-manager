@@ -1,23 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from 'axios'
-
-// API 基础 URL - 在 Docker 环境中使用相对路径
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
-
-const api = axios.create({
-  baseURL: apiBaseUrl,
-  timeout: 30000
-})
-
-// 所有请求自动带上 localStorage 中的 API Key
-api.interceptors.request.use(config => {
-  const apiKey = localStorage.getItem('apiKey')
-  if (apiKey) {
-    config.headers['X-API-Key'] = apiKey
-  }
-  return config
-})
+import api from '../utils/api'
 
 export const useSubtitleStore = defineStore('subtitle', () => {
   // State

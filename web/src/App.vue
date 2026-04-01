@@ -9,8 +9,16 @@
       <div class="bg-beam beam-b"></div>
     </div>
 
-    <!-- 鼠标光球（放App层级，不受任何子元素transform影响） -->
-    <div class="app-mouse-glow" :style="appGlowStyle"></div>
+    <teleport to="body">
+      <div
+        class="app-mouse-glow"
+        :class="{
+          'is-interactive': cursorState === 'interactive',
+          'is-blocked': cursorState === 'blocked'
+        }"
+        :style="appGlowStyle"
+      ></div>
+    </teleport>
 
     <Sidebar :mobile-open="mobileMenuOpen" @close="mobileMenuOpen = false" />
 
@@ -43,28 +51,24 @@ useThemeMode()
 
 // App-level mouse glow tracking
 const appPointer = reactive({ x: 0, y: 0, active: false })
-const isOverInteractive = ref(false)
+const cursorState = ref('default')
 
 const appGlowStyle = computed(() => ({
   left: `${appPointer.x}px`,
   top: `${appPointer.y}px`,
   opacity: appPointer.active ? 1 : 0,
-  width: isOverInteractive.value ? '36px' : '20px',
-  height: isOverInteractive.value ? '36px' : '20px',
-  background: isOverInteractive.value
-    ? 'radial-gradient(circle, rgba(255, 107, 53, 0.9) 0%, rgba(255, 107, 53, 0.4) 60%, transparent 100%)'
-    : 'radial-gradient(circle, rgba(34, 246, 255, 1) 0%, rgba(34, 246, 255, 0.5) 50%, transparent 100%)'
+  width: cursorState.value === 'interactive' ? '38px' : cursorState.value === 'blocked' ? '28px' : '20px',
+  height: cursorState.value === 'interactive' ? '38px' : cursorState.value === 'blocked' ? '28px' : '20px'
 }))
 
-function isInteractive(el) {
-  if (!el) return false
+function resolveCursorState(el) {
+  if (!el) return 'default'
 
   const interactiveSelectors = [
     'a',
     'button',
     '[role="button"]',
     '[tabindex]:not([tabindex="-1"])',
-    '[disabled]',
     '.action-card',
     '.stat-card',
     '.clickable',
@@ -82,32 +86,31 @@ function isInteractive(el) {
     '[style*="cursor:not-allowed"]'
   ].join(', ')
 
-  if (el.closest(interactiveSelectors)) {
-    return true
-  }
-
   let current = el
   while (current && current !== document.body) {
     const { cursor } = window.getComputedStyle(current)
-    if (cursor === 'pointer' || cursor === 'not-allowed') {
-      return true
+    if (cursor === 'not-allowed' || current.matches(':disabled') || current.getAttribute('aria-disabled') === 'true') {
+      return 'blocked'
+    }
+    if (cursor === 'pointer' || current.closest(interactiveSelectors)) {
+      return 'interactive'
     }
     current = current.parentElement
   }
 
-  return false
+  return 'default'
 }
 
 function onDocMouseMove(e) {
   appPointer.x = e.clientX
   appPointer.y = e.clientY
   appPointer.active = true
-  isOverInteractive.value = !!isInteractive(e.target)
+  cursorState.value = resolveCursorState(e.target)
 }
 
 function onDocMouseLeave() {
   appPointer.active = false
-  isOverInteractive.value = false
+  cursorState.value = 'default'
 }
 
 onMounted(() => {
@@ -775,7 +778,30 @@ body,
   pointer-events: none;
   z-index: 9999;
   transform: translate(-50%, -50%);
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, width 0.2s ease, height 0.2s ease, filter 0.2s ease, background 0.2s ease;
+  will-change: transform, width, height, opacity;
+}
+
+.app-mouse-glow.is-interactive {
+  background: radial-gradient(circle, rgba(255, 107, 53, 0.96) 0%, rgba(255, 107, 53, 0.46) 58%, transparent 100%);
+  filter: drop-shadow(0 0 10px rgba(255, 107, 53, 0.5));
+  animation: cursorPulse 1.2s ease-in-out infinite;
+}
+
+.app-mouse-glow.is-blocked {
+  background: radial-gradient(circle, rgba(255, 216, 77, 0.95) 0%, rgba(255, 216, 77, 0.36) 58%, transparent 100%);
+  filter: drop-shadow(0 0 8px rgba(255, 216, 77, 0.4)) saturate(0.8);
+}
+
+@keyframes cursorPulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: drop-shadow(0 0 10px rgba(255, 107, 53, 0.45));
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.12);
+    filter: drop-shadow(0 0 16px rgba(255, 107, 53, 0.7));
+  }
 }
 
 /* Better Text Rendering */
