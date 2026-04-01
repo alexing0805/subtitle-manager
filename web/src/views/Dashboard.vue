@@ -415,13 +415,13 @@ function getStatusText(status) {
   position: absolute;
   width: 280px;
   height: 280px;
-  background: radial-gradient(circle, rgba(34, 246, 255, 0.18) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(34, 246, 255, 0.22) 0%, transparent 70%);
   border-radius: 50%;
   pointer-events: none;
   z-index: 1;
   transform: translate(-50%, -50%);
-  transition: opacity 0.4s ease, left 0.12s ease-out, top 0.12s ease-out;
-  filter: blur(24px);
+  transition: opacity 0.3s ease;
+  filter: blur(20px);
 }
 
 /* 背景粒子效果 */

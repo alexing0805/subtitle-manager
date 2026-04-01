@@ -53,8 +53,8 @@ export function useAmbientEffects(options = {}) {
   }))
 
   const mouseGlowStyle = computed(() => ({
-    left: `${pointer.x}px`,
-    top: `${pointer.y}px`,
+    left: `${pointer.x - 140}px`,
+    top: `${pointer.y - 140}px`,
     opacity: pointer.active ? 1 : 0
   }))
 
