@@ -407,21 +407,21 @@ function getStatusText(status) {
   max-width: 1200px;
   position: relative;
   overflow: hidden;
-  padding: 20px;
+  padding: 12px 20px;
 }
 
 /* 黑洞效果 */
 .mouse-glow {
-  position: fixed;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(34, 246, 255, 0.08) 0%, transparent 70%);
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(34, 246, 255, 0.18) 0%, transparent 70%);
   border-radius: 50%;
   pointer-events: none;
   z-index: 1;
   transform: translate(-50%, -50%);
-  transition: opacity 1s ease;
-  filter: blur(40px);
+  transition: opacity 0.4s ease, left 0.12s ease-out, top 0.12s ease-out;
+  filter: blur(24px);
 }
 
 /* 背景粒子效果 */
@@ -482,7 +482,7 @@ function getStatusText(status) {
 
 /* 欢迎区域 */
 .welcome-section {
-  margin-bottom: 50px;
+  margin-bottom: 32px;
   padding-left: 10px;
 }
 

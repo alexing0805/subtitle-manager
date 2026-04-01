@@ -219,7 +219,7 @@ body::before {
 .main-content {
   flex: 1;
   margin-left: 280px;
-  padding: 40px 48px;
+  padding: 16px 48px;
   min-height: 100vh;
   background: transparent;
   position: relative;
