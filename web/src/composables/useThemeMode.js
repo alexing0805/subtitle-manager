@@ -5,6 +5,7 @@ const DEFAULT_MODE = 'dark'
 const themeMode = ref(DEFAULT_MODE)
 const resolvedTheme = ref('dark')
 let mediaQuery
+let transitionTimer = null
 let initialized = false
 
 function isValidThemeMode(value) {
@@ -14,9 +15,18 @@ function isValidThemeMode(value) {
 function resolveTheme(mode) {
   if (mode === 'oled') return 'oled'
   if (mode === 'system') {
-    return mediaQuery?.matches ? 'oled' : 'dark'
+    return mediaQuery?.matches ? 'dark' : 'dark'
   }
   return 'dark'
+}
+
+function triggerThemeTransition() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return
+  document.documentElement.classList.add('theme-transition')
+  window.clearTimeout(transitionTimer)
+  transitionTimer = window.setTimeout(() => {
+    document.documentElement.classList.remove('theme-transition')
+  }, 360)
 }
 
 function applyTheme(mode) {
@@ -24,6 +34,7 @@ function applyTheme(mode) {
   resolvedTheme.value = resolveTheme(mode)
   document.documentElement.dataset.themeMode = mode
   document.documentElement.dataset.themeResolved = resolvedTheme.value
+  triggerThemeTransition()
 }
 
 function handleSystemThemeChange() {
@@ -58,9 +69,9 @@ export function useThemeMode() {
   initThemeMode()
 
   const themeOptions = computed(() => [
-    { label: '深灰', value: 'dark', description: '默认霓虹深灰背景' },
-    { label: '真黑色', value: 'oled', description: 'OLED 纯黑背景' },
-    { label: '跟随系统', value: 'system', description: '自动匹配系统深色偏好' }
+    { label: '深灰', value: 'dark', description: '保留霓虹层次和背景光晕' },
+    { label: '真黑', value: 'oled', description: 'OLED 纯黑底，减少杂光' },
+    { label: '跟随系统', value: 'system', description: '跟随系统深色偏好，默认落到深灰主题' }
   ])
 
   return {

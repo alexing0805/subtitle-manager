@@ -152,10 +152,24 @@
                   :key="option.value"
                   :label="option.value"
                 >
-                  {{ option.label }}
+                  <span class="theme-option-label">{{ option.label }}</span>
                 </el-radio-button>
               </el-radio-group>
-              <div class="form-hint">当前生效：{{ resolvedTheme === 'oled' ? '真黑色' : '深灰' }}，切换会平滑过渡 300ms</div>
+              <div class="theme-mode-summary">
+                <strong>当前生效：{{ resolvedTheme === 'oled' ? '真黑' : '深灰' }}</strong>
+                <span>设置会保存到本地浏览器，下次打开继续生效；切换带平滑过渡。</span>
+              </div>
+              <div class="theme-option-notes">
+                <div
+                  v-for="option in themeOptions"
+                  :key="`${option.value}-note`"
+                  class="theme-note-card"
+                  :class="{ active: themeMode === option.value }"
+                >
+                  <span>{{ option.label }}</span>
+                  <p>{{ option.description }}</p>
+                </div>
+              </div>
             </div>
           </el-form-item>
 
@@ -483,6 +497,51 @@ async function testTMDBApi() {
   border-color: transparent;
 }
 
+.theme-option-label {
+  font-weight: 700;
+}
+
+.theme-mode-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--infuse-text-secondary);
+}
+
+.theme-option-notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.theme-note-card {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  transition: all 0.25s ease;
+}
+
+.theme-note-card span {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.theme-note-card p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--infuse-text-muted);
+}
+
+.theme-note-card.active {
+  border-color: rgba(34, 246, 255, 0.32);
+  background: linear-gradient(135deg, rgba(34, 246, 255, 0.1), rgba(255, 43, 214, 0.08));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+
 @media (max-width: 768px) {
   .settings-section {
     padding: 18px;
@@ -505,6 +564,10 @@ async function testTMDBApi() {
 
   .theme-mode-toggle {
     width: 100%;
+  }
+
+  .theme-option-notes {
+    grid-template-columns: 1fr;
   }
 }
 </style>

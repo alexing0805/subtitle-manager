@@ -198,7 +198,7 @@ body {
   line-height: 1.5;
   overflow-x: hidden;
   cursor: none !important;
-  transition: background-color 0.3s ease, opacity 0.3s ease;
+  transition: background-color 0.35s ease, color 0.35s ease, opacity 0.35s ease;
 }
 
 body::before {
@@ -218,7 +218,7 @@ body::before {
   background: var(--infuse-bg-primary);
   position: relative;
   isolation: isolate;
-  transition: background-color 0.3s ease, opacity 0.3s ease;
+  transition: background-color 0.35s ease, opacity 0.35s ease;
 }
 
 .mobile-topbar {
@@ -231,7 +231,7 @@ body::before {
   overflow: hidden;
   pointer-events: none;
   z-index: -1;
-  transition: opacity 0.3s ease, background-color 0.3s ease;
+  transition: opacity 0.35s ease, background-color 0.35s ease;
 }
 
 .bg-grid,
@@ -240,7 +240,7 @@ body::before {
 .bg-beam {
   position: absolute;
   inset: 0;
-  transition: opacity 0.3s ease, background-color 0.3s ease;
+  transition: opacity 0.35s ease, background-color 0.35s ease, filter 0.35s ease;
 }
 
 :root[data-theme-resolved='oled'] {
@@ -248,9 +248,12 @@ body::before {
   --infuse-bg-secondary: rgba(0, 0, 0, 0.92);
   --infuse-bg-tertiary: rgba(0, 0, 0, 0.96);
   --infuse-bg-card: rgba(0, 0, 0, 0.82);
-  --infuse-bg-hover: rgba(8, 8, 8, 0.98);
+  --infuse-bg-hover: rgba(10, 10, 10, 0.98);
+  --infuse-border: rgba(85, 113, 204, 0.18);
+  --infuse-border-hover: rgba(119, 247, 255, 0.34);
   --infuse-gradient-overlay: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.78) 48%, rgba(0, 0, 0, 0.98) 100%);
   --infuse-gradient-card: linear-gradient(145deg, rgba(8, 8, 8, 0.9) 0%, rgba(0, 0, 0, 0.96) 100%);
+  --infuse-shadow-glow: 0 0 0 1px rgba(34, 246, 255, 0.14), 0 0 22px rgba(34, 246, 255, 0.12), 0 18px 42px rgba(0, 0, 0, 0.62);
 }
 
 .bg-grid {
@@ -268,6 +271,35 @@ body::before {
     radial-gradient(circle at 80% 30%, rgba(34, 246, 255, 0.12) 0 1px, transparent 1px),
     radial-gradient(circle at 60% 80%, rgba(255, 43, 214, 0.12) 0 1px, transparent 1px);
   background-size: 140px 140px, 210px 210px, 180px 180px;
+}
+
+:root[data-theme-resolved='oled'] .bg-grid {
+  opacity: 0.36;
+}
+
+:root[data-theme-resolved='oled'] .bg-noise {
+  opacity: 0.08;
+}
+
+:root[data-theme-resolved='oled'] .bg-orb {
+  opacity: 0.24;
+  filter: blur(32px);
+}
+
+:root[data-theme-resolved='oled'] .bg-beam {
+  opacity: 0.18;
+}
+
+:root.theme-transition *,
+:root.theme-transition *::before,
+:root.theme-transition *::after {
+  transition:
+    background-color 0.35s ease,
+    background 0.35s ease,
+    border-color 0.35s ease,
+    color 0.35s ease,
+    box-shadow 0.35s ease,
+    opacity 0.35s ease !important;
 }
 
 .bg-orb {
