@@ -1,5 +1,5 @@
 <template>
-  <div class="app infuse-theme" @mousemove="handleAppMouseMove" @mouseleave="handleAppMouseLeave">
+  <div class="app infuse-theme">
     <div class="app-background" aria-hidden="true">
       <div class="bg-grid"></div>
       <div class="bg-noise"></div>
@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Menu } from '@element-plus/icons-vue'
 import Sidebar from './components/Sidebar.vue'
@@ -43,35 +43,42 @@ const mobileMenuOpen = ref(false)
 const appPointer = reactive({ x: 0, y: 0, active: false })
 const isOverInteractive = ref(false)
 
-const appGlowStyle = computed(() => {
-  const base = {
-    left: `${appPointer.x}px`,
-    top: `${appPointer.y}px`,
-    opacity: appPointer.active ? 1 : 0,
-    width: isOverInteractive.value ? '36px' : '20px',
-    height: isOverInteractive.value ? '36px' : '20px',
-    background: isOverInteractive.value
-      ? 'radial-gradient(circle, rgba(255, 107, 53, 0.9) 0%, rgba(255, 107, 53, 0.4) 60%, transparent 100%)'
-      : 'radial-gradient(circle, rgba(34, 246, 255, 1) 0%, rgba(34, 246, 255, 0.5) 50%, transparent 100%)'
-  }
-  return base
-})
+const appGlowStyle = computed(() => ({
+  left: `${appPointer.x}px`,
+  top: `${appPointer.y}px`,
+  opacity: appPointer.active ? 1 : 0,
+  width: isOverInteractive.value ? '36px' : '20px',
+  height: isOverInteractive.value ? '36px' : '20px',
+  background: isOverInteractive.value
+    ? 'radial-gradient(circle, rgba(255, 107, 53, 0.9) 0%, rgba(255, 107, 53, 0.4) 60%, transparent 100%)'
+    : 'radial-gradient(circle, rgba(34, 246, 255, 1) 0%, rgba(34, 246, 255, 0.5) 50%, transparent 100%)'
+}))
 
 function isInteractive(el) {
-  return el.closest('a, button, [role="button"], input, select, textarea, .action-card, .stat-card, .clickable')
+  return el?.closest('a, button, [role="button"], .action-card, .stat-card, .clickable, [style*="cursor: pointer"], .el-button, .infuse-button')
 }
 
-function handleAppMouseMove(e) {
+function onDocMouseMove(e) {
   appPointer.x = e.clientX
   appPointer.y = e.clientY
   appPointer.active = true
   isOverInteractive.value = !!isInteractive(e.target)
 }
 
-function handleAppMouseLeave() {
+function onDocMouseLeave() {
   appPointer.active = false
   isOverInteractive.value = false
 }
+
+onMounted(() => {
+  document.addEventListener('mousemove', onDocMouseMove)
+  document.addEventListener('mouseleave', onDocMouseLeave)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', onDocMouseMove)
+  document.removeEventListener('mouseleave', onDocMouseLeave)
+})
 
 const routeTitles = {
   '/': '仪表盘',
@@ -150,7 +157,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
   overflow-x: hidden;
-  cursor: none;
+  cursor: none !important;
 }
 
 body::before {
@@ -662,6 +669,11 @@ body::before {
 .infuse-card:hover::after {
   animation: shimmer 0.8s ease-out forwards;
   opacity: 1;
+}
+
+/* 强制隐藏所有组件的小手光标 */
+a, button, .el-button, .el-select, [role="button"], .action-card, .stat-card, .clickable {
+  cursor: none !important;
 }
 
 /* App-level mouse glow — always on top, viewport-anchored */
