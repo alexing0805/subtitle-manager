@@ -1,5 +1,5 @@
 <template>
-  <div class="app infuse-theme">
+  <div class="app infuse-theme" @mousemove="handleAppMouseMove" @mouseleave="handleAppMouseLeave">
     <div class="app-background" aria-hidden="true">
       <div class="bg-grid"></div>
       <div class="bg-noise"></div>
@@ -8,6 +8,9 @@
       <div class="bg-beam beam-a"></div>
       <div class="bg-beam beam-b"></div>
     </div>
+
+    <!-- 鼠标光球（放App层级，不受任何子元素transform影响） -->
+    <div class="app-mouse-glow" :style="appGlowStyle"></div>
 
     <Sidebar :mobile-open="mobileMenuOpen" @close="mobileMenuOpen = false" />
 
@@ -28,13 +31,32 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Menu } from '@element-plus/icons-vue'
 import Sidebar from './components/Sidebar.vue'
 
 const route = useRoute()
 const mobileMenuOpen = ref(false)
+
+// App-level mouse glow tracking
+const appPointer = reactive({ x: 0, y: 0, active: false })
+
+const appGlowStyle = computed(() => ({
+  left: `${appPointer.x - 140}px`,
+  top: `${appPointer.y - 140}px`,
+  opacity: appPointer.active ? 1 : 0
+}))
+
+function handleAppMouseMove(e) {
+  appPointer.x = e.clientX
+  appPointer.y = e.clientY
+  appPointer.active = true
+}
+
+function handleAppMouseLeave() {
+  appPointer.active = false
+}
 
 const routeTitles = {
   '/': '仪表盘',
@@ -624,6 +646,21 @@ body::before {
 .infuse-card:hover::after {
   animation: shimmer 0.8s ease-out forwards;
   opacity: 1;
+}
+
+/* App-level mouse glow — always on top, viewport-anchored */
+.app-mouse-glow {
+  position: fixed;
+  width: 280px;
+  height: 280px;
+  margin-left: -140px;
+  margin-top: -140px;
+  background: radial-gradient(circle, rgba(34, 246, 255, 0.22) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transition: opacity 0.3s ease;
+  filter: blur(20px);
 }
 
 /* Better Text Rendering */

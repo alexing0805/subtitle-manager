@@ -1,8 +1,5 @@
 <template>
   <div class="dashboard page-shell" ref="dashboardRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
-    <!-- 鼠标跟随后景(黑洞效果) -->
-    <div class="mouse-glow blackhole" :style="mouseGlowStyle"></div>
-
     <!-- 背景粒子效果 -->
     <div class="bg-particles">
       <div
@@ -232,7 +229,6 @@ const {
   containerRef: dashboardRef,
   particles,
   parallaxStyle,
-  mouseGlowStyle,
   handleMouseMove,
   handleMouseLeave,
   handleTiltMove,
@@ -408,23 +404,6 @@ function getStatusText(status) {
   position: relative;
   overflow: hidden;
   padding: 12px 20px;
-}
-
-/* 黑洞效果 */
-.mouse-glow {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 280px;
-  height: 280px;
-  margin-left: -140px;
-  margin-top: -140px;
-  background: radial-gradient(circle, rgba(34, 246, 255, 0.22) 0%, transparent 70%);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 1;
-  transition: opacity 0.3s ease;
-  filter: blur(20px);
 }
 
 /* 背景粒子效果 */
