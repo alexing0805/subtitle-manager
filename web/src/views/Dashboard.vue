@@ -25,15 +25,16 @@
         @mousemove="handleTiltMove"
         @mouseleave="handleTiltLeave"
       >
-        <div class="stat-icon" style="background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);">
+        <div class="card-glow movies-glow"></div>
+        <div class="stat-icon" style="background: linear-gradient(135deg, #22f6ff 0%, #00d2ff 100%);">
           <el-icon><Film /></el-icon>
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ stats.totalMovies }}</div>
           <div class="stat-label">电影</div>
           <div class="stat-sublabel">
-            <span class="highlight-success">{{ stats.moviesWithSubtitle }}</span> 有字幕 /
-            <span class="highlight-warning">{{ stats.moviesWithoutSubtitle }}</span> 缺字幕
+            <span class="highlight-cyan">{{ stats.moviesWithSubtitle }}</span> 有字幕 /
+            <span class="highlight-muted">{{ stats.moviesWithoutSubtitle }}</span> 缺字幕
           </div>
         </div>
         <div class="card-arrow">
@@ -48,15 +49,16 @@
         @mousemove="handleTiltMove"
         @mouseleave="handleTiltLeave"
       >
-        <div class="stat-icon" style="background: linear-gradient(135deg, #5856d6 0%, #af52de 100%);">
+        <div class="card-glow tv-glow"></div>
+        <div class="stat-icon" style="background: linear-gradient(135deg, #ff2bd6 0%, #d400ff 100%);">
           <el-icon><VideoCamera /></el-icon>
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ stats.totalTVShows }}</div>
           <div class="stat-label">电视剧</div>
           <div class="stat-sublabel">
-            <span class="highlight-info">{{ stats.totalEpisodes }}</span> 集 /
-            <span class="highlight-success">{{ stats.episodesWithSubtitle }}</span> 有字幕
+            <span class="highlight-magenta">{{ stats.totalEpisodes }}</span> 集 /
+            <span class="highlight-cyan">{{ stats.episodesWithSubtitle }}</span> 有字幕
           </div>
         </div>
         <div class="card-arrow">
@@ -71,15 +73,16 @@
         @mousemove="handleTiltMove"
         @mouseleave="handleTiltLeave"
       >
-        <div class="stat-icon" style="background: linear-gradient(135deg, #ff2d55 0%, #ff6b8a 100%);">
+        <div class="card-glow anime-glow"></div>
+        <div class="stat-icon" style="background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);">
           <el-icon><Grid /></el-icon>
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ stats.totalAnime }}</div>
           <div class="stat-label">动漫</div>
           <div class="stat-sublabel">
-            <span class="highlight-success">{{ stats.animeWithSubtitle }}</span> 有字幕 /
-            <span class="highlight-warning">{{ stats.animeWithoutSubtitle }}</span> 缺字幕
+            <span class="highlight-cyan">{{ stats.animeWithSubtitle }}</span> 有字幕 /
+            <span class="highlight-muted">{{ stats.animeWithoutSubtitle }}</span> 缺字幕
           </div>
         </div>
         <div class="card-arrow">
@@ -93,18 +96,19 @@
         @mousemove="handleTiltMove"
         @mouseleave="handleTiltLeave"
       >
+        <div class="card-glow total-glow"></div>
         <div class="stat-icon" style="background: linear-gradient(135deg, #34c759 0%, #30d158 100%);">
           <el-icon><Check /></el-icon>
         </div>
         <div class="stat-content">
           <div class="stat-value-row">
             <div class="stat-mini">
-              <span class="mini-value success">{{ stats.totalWithSubtitle }}</span>
+              <span class="mini-value cyan">{{ stats.totalWithSubtitle }}</span>
               <span class="mini-label">已有字幕</span>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-mini">
-              <span class="mini-value warning">{{ stats.totalWithoutSubtitle }}</span>
+              <span class="mini-value magenta">{{ stats.totalWithoutSubtitle }}</span>
               <span class="mini-label">缺少字幕</span>
             </div>
           </div>
@@ -117,28 +121,32 @@
       <h2 class="section-title">快捷操作</h2>
       <div class="actions-grid">
         <button class="action-card infuse-card infuse-tilt infuse-ripple-target" @click="triggerRipple($event); handleScan()" @mousemove="handleTiltMove" @mouseleave="handleTiltLeave">
-          <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);">
+          <div class="card-glow scan-glow"></div>
+          <div class="action-icon-wrapper scan-icon-bg">
             <el-icon class="action-icon"><Refresh /></el-icon>
           </div>
           <span class="action-text">扫描库</span>
         </button>
 
         <button class="action-card infuse-card infuse-tilt infuse-ripple-target" @click="triggerRipple($event); $router.push('/batch-upload')" @mousemove="handleTiltMove" @mouseleave="handleTiltLeave">
-          <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #5856d6 0%, #af52de 100%);">
+          <div class="card-glow upload-glow"></div>
+          <div class="action-icon-wrapper upload-icon-bg">
             <el-icon class="action-icon"><Upload /></el-icon>
           </div>
           <span class="action-text">批量上传</span>
         </button>
 
         <button class="action-card infuse-card infuse-tilt infuse-ripple-target" @click="triggerRipple($event); handleAutoDownload()" @mousemove="handleTiltMove" @mouseleave="handleTiltLeave">
-          <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #34c759 0%, #30d158 100%);">
+          <div class="card-glow download-glow"></div>
+          <div class="action-icon-wrapper download-icon-bg">
             <el-icon class="action-icon"><Download /></el-icon>
           </div>
           <span class="action-text">自动下载</span>
         </button>
 
         <button class="action-card infuse-card infuse-tilt infuse-ripple-target" @click="triggerRipple($event); $router.push('/settings')" @mousemove="handleTiltMove" @mouseleave="handleTiltLeave">
-          <div class="action-icon-wrapper" style="background: linear-gradient(135deg, #0071e3 0%, #42a5f5 100%);">
+          <div class="card-glow settings-glow"></div>
+          <div class="action-icon-wrapper settings-icon-bg">
             <el-icon class="action-icon"><Setting /></el-icon>
           </div>
           <span class="action-text">设置</span>
@@ -486,73 +494,86 @@ function getStatusText(status) {
   opacity: 0.85;
 }
 
-/* Infuse 卡片增强 */
+/* Infuse 卡片增强 - 深度玻璃拟态 */
 .infuse-card {
-  background: rgba(10, 16, 38, 0.65);
-  border-radius: var(--infuse-radius-lg);
-  border: 1px solid rgba(119, 247, 255, 0.12);
-  backdrop-filter: blur(24px);
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
   overflow: hidden;
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: 
+    0 4px 24px -1px rgba(0, 0, 0, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  position: relative;
 }
 
 .infuse-card:hover {
-  border-color: var(--infuse-accent);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), var(--infuse-shadow-glow);
+  background: rgba(15, 23, 42, 0.5);
+  border-color: rgba(34, 246, 255, 0.3);
+  box-shadow: 
+    0 20px 40px -12px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(34, 246, 255, 0.1);
 }
+
+/* 动态光晕层 */
+.card-glow {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.infuse-card:hover .card-glow {
+  opacity: 1;
+}
+
+.movies-glow { background: radial-gradient(circle at top right, rgba(34, 246, 255, 0.15), transparent 60%); }
+.tv-glow { background: radial-gradient(circle at top right, rgba(255, 43, 214, 0.15), transparent 60%); }
+.anime-glow { background: radial-gradient(circle at top right, rgba(0, 242, 254, 0.15), transparent 60%); }
+.total-glow { background: radial-gradient(circle at top right, rgba(52, 199, 89, 0.15), transparent 60%); }
+
+.scan-glow { background: radial-gradient(circle at center, rgba(34, 246, 255, 0.12), transparent 70%); }
+.upload-glow { background: radial-gradient(circle at center, rgba(255, 43, 214, 0.12), transparent 70%); }
+.download-glow { background: radial-gradient(circle at center, rgba(52, 199, 89, 0.12), transparent 70%); }
+.settings-glow { background: radial-gradient(circle at center, rgba(66, 165, 245, 0.12), transparent 70%); }
 
 /* 统计卡片 */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
-  margin-bottom: 50px;
+  gap: 20px;
+  margin-bottom: 48px;
 }
 
 .stat-card {
-  position: relative;
+  padding: 24px;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 28px;
-  cursor: pointer;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
-.stat-glow {
-  position: absolute;
-  width: 250px;
-  height: 250px;
-  background: radial-gradient(circle, rgba(34, 246, 255, 0.12) 0%, transparent 70%);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s ease;
-  filter: blur(30px);
-  z-index: 0;
+  gap: 18px;
 }
 
 .stat-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 28px;
+  font-size: 24px;
   flex-shrink: 0;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
   z-index: 1;
 }
 
 .stat-card:hover .stat-icon {
-  transform: scale(1.15) translateZ(20px) rotate(-5deg);
+  transform: scale(1.1) rotate(-5deg);
 }
 
 .stat-content {
@@ -563,71 +584,55 @@ function getStatusText(status) {
 }
 
 .stat-value {
-  font-size: 40px;
+  font-size: 32px;
   font-weight: 800;
-  line-height: 1;
-  margin-bottom: 6px;
-  background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+  line-height: 1.1;
+  margin-bottom: 4px;
+  background: linear-gradient(to bottom, #fff, #cbd5e1);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  transition: transform 0.4s ease;
-}
-
-.stat-card:hover .stat-value {
-  transform: translateZ(10px);
+  letter-spacing: -0.02em;
 }
 
 .stat-label {
-  font-size: 14px;
-  color: var(--infuse-text-secondary);
-  font-weight: 500;
-  margin-bottom: 4px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
 }
 
 .stat-sublabel {
   font-size: 12px;
-  color: var(--infuse-text-muted);
+  color: rgba(255, 255, 255, 0.35);
 }
 
-.highlight-success {
-  color: #34c759;
-  font-weight: 600;
-}
-
-.highlight-warning {
-  color: #ff9500;
-  font-weight: 600;
-}
-
-.highlight-info {
-  color: #5856d6;
-  font-weight: 600;
-}
+.highlight-cyan { color: #22f6ff; font-weight: 600; }
+.highlight-magenta { color: #ff2bd6; font-weight: 600; }
+.highlight-muted { color: rgba(255, 255, 255, 0.5); }
 
 .card-arrow {
   position: absolute;
   right: 16px;
   top: 50%;
-  transform: translateY(-50%) translateX(10px);
+  transform: translateY(-50%) translateX(-10px);
   opacity: 0;
-  color: var(--infuse-accent);
-  transition: all 0.3s;
+  color: #22f6ff;
+  transition: all 0.3s ease;
 }
 
-.stat-card.hovered .card-arrow {
+.stat-card:hover .card-arrow {
   opacity: 1;
   transform: translateY(-50%) translateX(0);
 }
 
 /* 总览卡片 */
-.total-card {
-  grid-column: span 1;
-}
-
 .stat-value-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: space-around;
+  width: 100%;
 }
 
 .stat-mini {
@@ -637,55 +642,32 @@ function getStatusText(status) {
 }
 
 .mini-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
-  line-height: 1;
-  background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+}
+
+.mini-value.cyan {
+  background: linear-gradient(135deg, #22f6ff, #00d2ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.mini-value.success {
-  background: linear-gradient(180deg, #34c759 0%, #30d158 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.mini-value.warning {
-  background: linear-gradient(180deg, #ff9500 0%, #ffcc00 100%);
+.mini-value.magenta {
+  background: linear-gradient(135deg, #ff2bd6, #d400ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .mini-label {
   font-size: 11px;
-  color: var(--infuse-text-muted);
+  color: rgba(255, 255, 255, 0.3);
   margin-top: 4px;
 }
 
 .stat-divider {
   width: 1px;
-  height: 40px;
-  background: linear-gradient(180deg, transparent, var(--infuse-border), transparent);
-}
-
-/* 分区标题 */
-.section-title {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 20px;
-  color: var(--infuse-text-primary);
-  letter-spacing: -0.01em;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.section-title::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, var(--infuse-border), transparent);
+  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* 快捷操作 */
@@ -700,60 +682,48 @@ function getStatusText(status) {
 }
 
 .action-card {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 32px 24px;
+  padding: 28px 20px;
   cursor: pointer;
-  border: none;
-  background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 28%), rgba(10, 16, 38, 0.76);
-  border: 1px solid rgba(119, 247, 255, 0.12) !important;
-  overflow: hidden;
-}
-
-.action-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), transparent 50%);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.action-card.hovered::before {
-  opacity: 1;
-}
-
-.action-card.hovered {
-  transform: translateY(-8px) scale(1.02);
-  border-color: var(--infuse-accent) !important;
-  box-shadow: var(--infuse-shadow-glow), var(--infuse-shadow-lg);
+  background: rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 .action-icon-wrapper {
-  width: 68px;
-  height: 68px;
-  border-radius: var(--infuse-radius-lg);
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 30px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  font-size: 28px;
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+  z-index: 1;
 }
 
-.action-card.hovered .action-icon-wrapper {
-  transform: scale(1.1) rotate(5deg);
+.scan-icon-bg { background: linear-gradient(135deg, #22f6ff 0%, #0099ff 100%); box-shadow: 0 10px 20px rgba(34, 246, 255, 0.2); }
+.upload-icon-bg { background: linear-gradient(135deg, #ff2bd6 0%, #a200ff 100%); box-shadow: 0 10px 20px rgba(255, 43, 214, 0.2); }
+.download-icon-bg { background: linear-gradient(135deg, #34c759 0%, #15803d 100%); box-shadow: 0 10px 20px rgba(52, 199, 89, 0.2); }
+.settings-icon-bg { background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); box-shadow: 0 10px 20px rgba(14, 165, 233, 0.2); }
+
+.action-card:hover .action-icon-wrapper {
+  transform: translateY(-5px) scale(1.1);
+  filter: brightness(1.1);
 }
 
 .action-text {
   font-size: 15px;
-  font-weight: 600;
-  color: var(--infuse-text-primary);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.02em;
+  position: relative;
+  z-index: 1;
 }
 
 .action-ripple {
@@ -784,18 +754,14 @@ function getStatusText(status) {
   }
 }
 
-/* 扫描按钮特殊效果 */
-.actions-grid .action-card:first-child.hovered .action-icon-wrapper {
-  animation: pulse-glow 1.5s ease-in-out infinite;
+/* 扫描按钮脉冲效果 */
+.actions-grid .action-card:first-child:hover .action-icon-wrapper {
+  animation: pulse-glow 2s ease-in-out infinite;
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-  }
-  50% {
-    box-shadow: 0 10px 35px rgba(255, 107, 53, 0.6), 0 0 50px rgba(255, 107, 53, 0.3);
-  }
+  0%, 100% { box-shadow: 0 10px 20px rgba(34, 246, 255, 0.2); }
+  50% { box-shadow: 0 10px 30px rgba(34, 246, 255, 0.5), 0 0 20px rgba(34, 246, 255, 0.3); }
 }
 
 /* 最近活动 */
