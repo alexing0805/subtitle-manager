@@ -311,11 +311,17 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <ScanVisualization
+      v-model:visible="scanVisualizationVisible"
+      title="动漫库扫描可视化"
+      :status="store.scanStatus"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -324,6 +330,7 @@ import axios from 'axios'
 import { useAmbientEffects } from '../composables/useAmbientEffects'
 import { useMediaDisplayMode } from '../composables/useMediaDisplayMode'
 import { buildScanConfirmHtml, createScanDialogOptions } from '../utils/scanDialog'
+import ScanVisualization from '../components/ScanVisualization.vue'
 
 const api = axios.create({
   baseURL: '/api',
@@ -357,6 +364,8 @@ const searchResults = ref([])
 const searching = ref(false)
 const downloading = ref(null)
 const hasSearched = ref(false)  // 记录是否已经搜索过
+const scanVisualizationVisible = ref(false)
+let scanPollTimer = null
 const { displayMode, artPreference } = useMediaDisplayMode()
 
 const filteredShows = computed(() => {
@@ -406,6 +415,10 @@ onMounted(async () => {
   } catch (error) {
     ElMessage.error('获取动漫列表失败')
   }
+})
+
+onBeforeUnmount(() => {
+  stopScanPolling()
 })
 
 function handleShowClick(show) {
@@ -540,19 +553,45 @@ async function handleScan() {
       throw new Error(result.message || '扫描任务提交失败')
     }
     
-    ElMessage.success({ message: '扫描任务已成功提交, 正在刷新数据...', customClass: 'infuse-message' })
-    
-    setTimeout(async () => {
+    scanVisualizationVisible.value = true
+    startScanPolling(async () => {
       await store.fetchAnime()
       shows.value = store.anime
       ElMessage.success({ message: '动漫库数据已同步更新', customClass: 'infuse-message' })
-    }, 3000)
+    })
+
+    ElMessage.success({ message: '扫描任务已成功提交，正在展开扫描树...', customClass: 'infuse-message' })
 
   } catch (error) {
     if (error === 'cancel' || error === 'close' || error === '') return
     console.error('Scan Error:', error)
     ElMessage.error({ message: '扫描失败: ' + (error.message || '未知错误'), customClass: 'infuse-message' })
   }
+}
+
+function stopScanPolling() {
+  if (scanPollTimer) {
+    clearInterval(scanPollTimer)
+    scanPollTimer = null
+  }
+}
+
+async function startScanPolling(onComplete) {
+  stopScanPolling()
+  const syncStatus = async () => {
+    const status = await store.fetchScanStatus()
+    scanVisualizationVisible.value = true
+    if (!status.isScanning && status.phase === 'complete') {
+      stopScanPolling()
+      if (typeof onComplete === 'function') {
+        await onComplete()
+      }
+    }
+  }
+  await syncStatus()
+  scanPollTimer = setInterval(() => {
+    syncStatus().catch(() => {})
+  }, 800)
 }
 
 function handlePosterError(e) {

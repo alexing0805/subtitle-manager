@@ -35,6 +35,12 @@ from backend.subtitle_sources import get_source, SubtitleResult, normalize_relea
 from backend.nfo_parser import NFOParser
 
 
+VIDEO_EXTENSIONS = {
+    '.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v',
+    '.ts', '.m2ts', '.mpg', '.mpeg', '.3gp', '.rmvb', '.rm'
+}
+
+
 class SubtitleManager:
     """字幕管理器"""
 
@@ -63,8 +69,15 @@ class SubtitleManager:
             "isScanning": False,
             "progress": 0,
             "currentFile": "",
+            "currentPath": "",
+            "currentPathMediaCount": 0,
             "totalFiles": 0,
             "processedFiles": 0,
+            "scannedDirectories": 0,
+            "totalDiscoveredMedia": 0,
+            "phase": "idle",
+            "message": "",
+            "tree": [],
         }
         # 字幕格式加分配置
         self._subtitle_format_bonus_config: Dict[str, float] = self._parse_subtitle_format_bonus()
@@ -169,18 +182,19 @@ class SubtitleManager:
     async def scan_and_process(self):
         """扫描并处理所有监控目录"""
         logger.info("开始扫描监控目录...")
-        
+        self._reset_scan_progress()
+
         all_video_files = []
         watch_dirs = settings.get_watch_dirs()
         logger.info(f"监控目录: {watch_dirs}")
         for watch_dir in watch_dirs:
             if os.path.exists(watch_dir):
-                video_files = get_video_files(watch_dir)
+                video_files = self._scan_watch_dir(watch_dir)
                 all_video_files.extend(video_files)
                 logger.info(f"目录 {watch_dir} 找到 {len(video_files)} 个视频文件")
             else:
                 logger.warning(f"监控目录不存在: {watch_dir}")
-        
+
         # 过滤已处理的文件
         new_files = []
         for video_path in all_video_files:
@@ -194,7 +208,14 @@ class SubtitleManager:
                     logger.debug(f"跳过失败次数过多的文件: {video_path}")
         
         logger.info(f"发现 {len(new_files)} 个新文件需要处理")
-        
+        self._scan_progress["phase"] = "processing"
+        self._scan_progress["message"] = f"准备处理 {len(new_files)} 个新文件"
+        self._scan_progress["totalFiles"] = len(new_files)
+        self._scan_progress["processedFiles"] = 0
+        if not new_files:
+            self._scan_progress["progress"] = 100
+            self._scan_progress["message"] = "扫描完成，没有发现新文件"
+
         # 并发处理
         semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_DOWNLOADS)
         tasks = []
@@ -207,12 +228,118 @@ class SubtitleManager:
             success_count = sum(1 for r in results if r is True)
             fail_count = sum(1 for r in results if r is False or isinstance(r, Exception))
             logger.info(f"处理完成: 成功 {success_count}, 失败 {fail_count}")
+            self._scan_progress["progress"] = 100
+            self._scan_progress["message"] = f"扫描完成，成功处理 {success_count} 个文件"
             # 记录扫描活动
             self._record_activity('scan', f'扫描完成: 发现 {len(new_files)} 个新文件, 处理成功 {success_count} 个', 'success' if fail_count == 0 else 'completed')
         else:
+            self._scan_progress["progress"] = 100
             self._record_activity('scan', f'扫描完成: 没有发现新文件', 'success')
-        
+        self._scan_progress["isScanning"] = False
+        self._scan_progress["phase"] = "complete"
         self.save_history()
+
+    def _reset_scan_progress(self):
+        """Reset scan progress state before a new library scan."""
+        self._scan_progress.update({
+            "isScanning": True,
+            "progress": 0,
+            "currentFile": "",
+            "currentPath": "",
+            "currentPathMediaCount": 0,
+            "totalFiles": 0,
+            "processedFiles": 0,
+            "scannedDirectories": 0,
+            "totalDiscoveredMedia": 0,
+            "phase": "scanning",
+            "message": "正在遍历媒体目录",
+            "tree": [],
+        })
+
+    def _scan_watch_dir(self, watch_dir: str) -> List[str]:
+        """Walk one watch directory and update tree progress for the frontend."""
+        video_files: List[str] = []
+        tree_map: Dict[str, Dict[str, Any]] = {}
+
+        for root, _dirs, files in os.walk(watch_dir):
+            media_files = []
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                if self._is_scan_media_file(file_name, file_path):
+                    media_files.append(file_path)
+
+            video_files.extend(media_files)
+            self._scan_progress["scannedDirectories"] += 1
+            self._scan_progress["currentPath"] = root
+            self._scan_progress["currentFile"] = root
+            self._scan_progress["currentPathMediaCount"] = len(media_files)
+            self._scan_progress["totalDiscoveredMedia"] = len(video_files)
+            self._scan_progress["message"] = f"正在扫描 {root}"
+            self._record_scan_tree_node(tree_map, watch_dir, root, len(media_files))
+
+        return video_files
+
+    def _is_scan_media_file(self, file_name: str, file_path: str) -> bool:
+        """Return True when the file should count as a scannable media file."""
+        suffix = Path(file_name).suffix.lower()
+        if suffix not in VIDEO_EXTENSIONS:
+            return False
+        if not os.path.exists(file_path):
+            return False
+        min_size_bytes = max(int(settings.MIN_FILE_SIZE_MB), 0) * 1024 * 1024
+        if min_size_bytes and os.path.getsize(file_path) < min_size_bytes:
+            return False
+        return True
+
+    def _record_scan_tree_node(self, tree_map: Dict[str, Dict[str, Any]], watch_dir: str, root: str, media_count: int):
+        """Build a nested scan tree snapshot for frontend visualization."""
+        relative_root = os.path.relpath(root, watch_dir)
+        segments = [] if relative_root == "." else relative_root.split(os.sep)
+        current_path = watch_dir
+        parent_key = None
+
+        for index, segment in enumerate([os.path.basename(watch_dir.rstrip(os.sep)) or watch_dir] + segments):
+            node_key = current_path if index == 0 else os.path.join(parent_key, segment)
+            if node_key not in tree_map:
+                tree_map[node_key] = {
+                    "key": node_key,
+                    "name": segment,
+                    "path": watch_dir if index == 0 else os.path.join(watch_dir, *segments[:index]),
+                    "mediaCount": 0,
+                    "children": [],
+                }
+                if parent_key and tree_map[node_key] not in tree_map[parent_key]["children"]:
+                    tree_map[parent_key]["children"].append(tree_map[node_key])
+            if index == len(segments):
+                tree_map[node_key]["mediaCount"] = media_count
+            parent_key = node_key
+            if index < len(segments):
+                current_path = os.path.join(current_path, segments[index])
+
+        self._scan_progress["tree"] = self._serialize_scan_tree(tree_map, watch_dir)
+        discovered = max(self._scan_progress["totalDiscoveredMedia"], 1)
+        raw_progress = (self._scan_progress["scannedDirectories"] * 7) + (self._scan_progress["totalDiscoveredMedia"] / discovered * 18)
+        self._scan_progress["progress"] = min(35, int(raw_progress))
+
+    def _serialize_scan_tree(self, tree_map: Dict[str, Dict[str, Any]], watch_dir: str) -> List[Dict[str, Any]]:
+        """Return a stable tree structure rooted at the current watch directory."""
+        root_key = watch_dir
+        root_node = tree_map.get(root_key)
+        if not root_node:
+            return self._scan_progress.get("tree", [])
+        return [self._clone_scan_tree_node(root_node)]
+
+    def _clone_scan_tree_node(self, node: Dict[str, Any]) -> Dict[str, Any]:
+        children = sorted(node.get("children", []), key=lambda child: child.get("name", "").lower())
+        total_count = node.get("mediaCount", 0) + sum(child.get("totalCount", child.get("mediaCount", 0)) for child in children)
+        return {
+            "key": node["key"],
+            "name": node["name"],
+            "path": node["path"],
+            "mediaCount": node.get("mediaCount", 0),
+            "totalCount": total_count,
+            "children": [self._clone_scan_tree_node(child) for child in children],
+        }
     
     def _get_file_hash(self, video_path: str) -> str:
         """获取文件标识（路径+大小+修改时间）"""
@@ -233,6 +360,8 @@ class SubtitleManager:
         
         try:
             logger.info(f"处理文件: {video_path}")
+            self._scan_progress["currentFile"] = video_path
+            self._scan_progress["message"] = f"正在处理 {os.path.basename(video_path)}"
             
             # 检查是否已有中文字幕
             if has_chinese_subtitle(video_path):
@@ -311,6 +440,12 @@ class SubtitleManager:
             logger.error(f"处理视频异常: {video_path}, 错误: {e}")
             self._record_failure(file_hash)
             return False
+        finally:
+            total_files = max(self._scan_progress.get("totalFiles", 0), 1)
+            processed = min(self._scan_progress.get("processedFiles", 0) + 1, total_files)
+            self._scan_progress["processedFiles"] = processed
+            base_progress = 35
+            self._scan_progress["progress"] = min(99, base_progress + int((processed / total_files) * 64))
     
     async def _search_subtitles(self, video_info: dict) -> List[SubtitleResult]:
         """从多个源搜索字幕，使用 NFO 和 TMDB 信息增强搜索结果"""
@@ -1738,6 +1873,9 @@ class SubtitleManager:
         # 更新扫描进度
         self._scan_progress["isScanning"] = (status == "running")
         self._scan_progress["progress"] = progress
+        self._scan_progress["message"] = message
+        if status != "running":
+            self._scan_progress["phase"] = "complete" if status == "completed" else status
 
     def get_scan_status(self):
         """获取扫描状态"""
@@ -1745,8 +1883,15 @@ class SubtitleManager:
             "isScanning": self._scan_progress.get("isScanning", False),
             "progress": self._scan_progress.get("progress", 100),
             "currentFile": self._scan_progress.get("currentFile", ""),
+            "currentPath": self._scan_progress.get("currentPath", ""),
+            "currentPathMediaCount": self._scan_progress.get("currentPathMediaCount", 0),
             "totalFiles": self._scan_progress.get("totalFiles", 0),
-            "processedFiles": len(self.processed_files)
+            "processedFiles": self._scan_progress.get("processedFiles", 0),
+            "scannedDirectories": self._scan_progress.get("scannedDirectories", 0),
+            "totalDiscoveredMedia": self._scan_progress.get("totalDiscoveredMedia", 0),
+            "phase": self._scan_progress.get("phase", "idle"),
+            "message": self._scan_progress.get("message", ""),
+            "tree": self._scan_progress.get("tree", []),
         }
 
     def get_tasks(self):

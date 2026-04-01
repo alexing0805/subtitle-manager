@@ -32,6 +32,20 @@ export const useSubtitleStore = defineStore('subtitle', () => {
   })
   const loading = ref(false)
   const currentTask = ref(null)
+  const scanStatus = ref({
+    isScanning: false,
+    progress: 0,
+    currentFile: '',
+    currentPath: '',
+    currentPathMediaCount: 0,
+    totalFiles: 0,
+    processedFiles: 0,
+    scannedDirectories: 0,
+    totalDiscoveredMedia: 0,
+    phase: 'idle',
+    message: '',
+    tree: []
+  })
 
   // Getters
   const moviesWithoutSubtitle = computed(() => 
@@ -186,6 +200,17 @@ export const useSubtitleStore = defineStore('subtitle', () => {
     }
   }
 
+  async function fetchScanStatus() {
+    try {
+      const response = await api.get('/scan/status')
+      scanStatus.value = response.data
+      return response.data
+    } catch (error) {
+      console.error('获取扫描状态失败:', error)
+      throw error
+    }
+  }
+
   return {
     movies,
     tvShows,
@@ -193,6 +218,7 @@ export const useSubtitleStore = defineStore('subtitle', () => {
     stats,
     loading,
     currentTask,
+    scanStatus,
     moviesWithoutSubtitle,
     tvEpisodesWithoutSubtitle,
     fetchMovies,
@@ -204,6 +230,7 @@ export const useSubtitleStore = defineStore('subtitle', () => {
     uploadSubtitle,
     batchUploadSubtitles,
     scanLibrary,
+    fetchScanStatus,
     processVideo
   }
 })

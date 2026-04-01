@@ -257,11 +257,17 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <ScanVisualization
+      v-model:visible="scanVisualizationVisible"
+      title="电影库扫描可视化"
+      :status="store.scanStatus"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Film, Check, Download, Document, Delete } from '@element-plus/icons-vue'
@@ -269,6 +275,7 @@ import axios from 'axios'
 import { useAmbientEffects } from '../composables/useAmbientEffects'
 import { useMediaDisplayMode } from '../composables/useMediaDisplayMode'
 import { buildScanConfirmHtml, createScanDialogOptions } from '../utils/scanDialog'
+import ScanVisualization from '../components/ScanVisualization.vue'
 
 const api = axios.create({
   baseURL: '/api',
@@ -287,6 +294,8 @@ const searching = ref(false)
 const downloading = ref(null)
 const loadingSubtitles = ref(false)
 const deletingSubtitle = ref(null)
+const scanVisualizationVisible = ref(false)
+let scanPollTimer = null
 const { displayMode, artPreference } = useMediaDisplayMode()
 const {
   containerRef,
@@ -331,6 +340,10 @@ onMounted(async () => {
   } catch (error) {
     ElMessage.error('获取电影列表失败')
   }
+})
+
+onBeforeUnmount(() => {
+  stopScanPolling()
 })
 
 function handleMovieClick(movie) {
@@ -464,17 +477,42 @@ async function handleScan() {
     ElMessage.info({ message: '正在扫描电影库...', customClass: 'infuse-message' })
     const result = await store.scanLibrary()
     if (result && result.success === false) throw new Error(result.message || '扫描失败')
-    
-    ElMessage.success({ message: '扫描任务已提交, 正在刷新列表...', customClass: 'infuse-message' })
-    setTimeout(async () => {
+    scanVisualizationVisible.value = true
+    startScanPolling(async () => {
       await store.fetchMovies()
       movies.value = store.movies
-      ElMessage.success({ message: '列表已更新', customClass: 'infuse-message' })
-    }, 3000)
+      ElMessage.success({ message: '电影库列表已更新', customClass: 'infuse-message' })
+    })
+    ElMessage.success({ message: '扫描任务已提交，正在展开扫描树...', customClass: 'infuse-message' })
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
     ElMessage.error({ message: '扫描失败: ' + (error.message || '未知错误'), customClass: 'infuse-message' })
   }
+}
+
+function stopScanPolling() {
+  if (scanPollTimer) {
+    clearInterval(scanPollTimer)
+    scanPollTimer = null
+  }
+}
+
+async function startScanPolling(onComplete) {
+  stopScanPolling()
+  const syncStatus = async () => {
+    const status = await store.fetchScanStatus()
+    scanVisualizationVisible.value = true
+    if (!status.isScanning && status.phase === 'complete') {
+      stopScanPolling()
+      if (typeof onComplete === 'function') {
+        await onComplete()
+      }
+    }
+  }
+  await syncStatus()
+  scanPollTimer = setInterval(() => {
+    syncStatus().catch(() => {})
+  }, 800)
 }
 
 function handlePosterError(event) {
