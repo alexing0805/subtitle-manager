@@ -413,13 +413,16 @@ function getStatusText(status) {
 /* 黑洞效果 */
 .mouse-glow {
   position: fixed;
+  left: 0;
+  top: 0;
   width: 280px;
   height: 280px;
+  margin-left: -140px;
+  margin-top: -140px;
   background: radial-gradient(circle, rgba(34, 246, 255, 0.22) 0%, transparent 70%);
   border-radius: 50%;
   pointer-events: none;
   z-index: 1;
-  transform: translate(-50%, -50%);
   transition: opacity 0.3s ease;
   filter: blur(20px);
 }
