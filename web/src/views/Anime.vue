@@ -1,5 +1,11 @@
 <template>
-  <div class="anime page-shell" ref="containerRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
+  <div
+    class="anime page-shell"
+    :class="`display-mode-${displayMode}`"
+    ref="containerRef"
+    @mousemove="handleMouseMove"
+    @mouseleave="handleMouseLeave"
+  >
     <div class="mouse-glow" :style="mouseGlowStyle"></div>
 
     <!-- 背景粒子效果 -->
@@ -29,11 +35,15 @@
         />
       </div>
       <div class="filter-group">
+        <el-radio-group v-model="displayMode" class="display-mode-toggle">
+          <el-radio-button label="compact">紧凑模式</el-radio-button>
+          <el-radio-button label="wide">宽幅模式</el-radio-button>
+        </el-radio-group>
         <el-button type="primary" class="infuse-btn-primary" @click="handleBatchUpload">
           <el-icon><Upload /></el-icon>
           批量上传字幕
         </el-button>
-        <el-button class="infuse-btn-default" @click="handleScan">
+        <el-button class="infuse-btn-default scan-btn" @click="handleScan">
           <el-icon><Refresh /></el-icon>
           扫描
         </el-button>
@@ -305,13 +315,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Upload, Monitor, Check, Setting, InfoFilled, Document, Download } from '@element-plus/icons-vue'
 import axios from 'axios'
 import { useAmbientEffects } from '../composables/useAmbientEffects'
+import { useMediaDisplayMode } from '../composables/useMediaDisplayMode'
 import { buildScanConfirmHtml, createScanDialogOptions } from '../utils/scanDialog'
 
 const api = axios.create({
@@ -323,7 +334,6 @@ const router = useRouter()
 const store = useSubtitleStore()
 const searchQuery = ref('')
 const shows = ref([])
-const isMobileView = ref(false)
 const {
   containerRef,
   particles,
@@ -347,6 +357,7 @@ const searchResults = ref([])
 const searching = ref(false)
 const downloading = ref(null)
 const hasSearched = ref(false)  // 记录是否已经搜索过
+const { displayMode, artPreference } = useMediaDisplayMode()
 
 const filteredShows = computed(() => {
   if (!searchQuery.value) return shows.value
@@ -379,34 +390,22 @@ function handleSeasonPosterError(e) {
   e.target.style.display = 'none'
 }
 
-function updateViewportState() {
-  isMobileView.value = window.matchMedia('(max-width: 768px)').matches
-}
-
 function hasMediaArt(media) {
   return Boolean(media?.posterPath || media?.fanartPath)
 }
 
 function getShowArtUrl(show) {
   if (!show?.id) return ''
-  const preferred = isMobileView.value ? 'fanart' : 'poster'
-  return `/api/art/anime/${show.id}?preferred=${preferred}`
+  return `/api/art/anime/${show.id}?preferred=${artPreference.value}`
 }
 
 onMounted(async () => {
-  updateViewportState()
-  window.addEventListener('resize', updateViewportState)
-
   try {
     await store.fetchAnime()
     shows.value = store.anime
   } catch (error) {
     ElMessage.error('获取动漫列表失败')
   }
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateViewportState)
 })
 
 function handleShowClick(show) {
@@ -705,6 +704,8 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .filter-group .el-button {
@@ -712,13 +713,13 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 }
 
 /* 扫描按钮特殊样式 */
-.filter-group .el-button:nth-child(2) {
+.scan-btn {
   background: linear-gradient(135deg, rgba(255, 107, 53, 0.15), rgba(255, 133, 85, 0.15)) !important;
   border-color: rgba(255, 107, 53, 0.4) !important;
   color: #ff6b35 !important;
 }
 
-.filter-group .el-button:nth-child(2):hover {
+.scan-btn:hover {
   background: linear-gradient(135deg, rgba(255, 107, 53, 0.25), rgba(255, 133, 85, 0.25)) !important;
   border-color: #ff6b35 !important;
   color: #ff8555 !important;
@@ -726,11 +727,11 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
 }
 
-.filter-group .el-button:nth-child(2) .el-icon {
+.scan-btn .el-icon {
   transition: transform 0.3s ease;
 }
 
-.filter-group .el-button:nth-child(2):hover .el-icon {
+.scan-btn:hover .el-icon {
   transform: rotate(90deg);
 }
 
@@ -757,11 +758,33 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   color: var(--infuse-accent) !important;
 }
 
+.display-mode-toggle {
+  --el-border-radius-base: 999px;
+}
+
+.display-mode-toggle :deep(.el-radio-button__inner) {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--infuse-text-secondary);
+  box-shadow: none;
+  min-width: 96px;
+}
+
+.display-mode-toggle :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: linear-gradient(135deg, rgba(34, 246, 255, 0.9), rgba(0, 168, 255, 0.9));
+  border-color: transparent;
+  color: #04111c;
+}
+
 /* 电视剧网格 */
 .shows-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 24px;
+}
+
+.display-mode-wide .shows-grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 }
 
 .show-card {
@@ -782,6 +805,10 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   overflow: hidden;
   background: linear-gradient(145deg, rgba(11, 20, 48, 0.92), rgba(8, 13, 30, 0.96));
   border: 1px solid rgba(119, 247, 255, 0.12);
+}
+
+.display-mode-wide .show-poster {
+  aspect-ratio: 16 / 9;
 }
 
 .show-poster::before {
@@ -1467,6 +1494,12 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
     gap: 12px;
   }
 
+  .display-mode-toggle {
+    width: 100%;
+  }
+
+  .display-mode-toggle :deep(.el-radio-button),
+  .display-mode-toggle :deep(.el-radio-button__inner),
   .filter-group .el-button,
   .episode-actions .el-button {
     width: 100%;

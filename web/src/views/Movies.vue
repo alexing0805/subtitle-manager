@@ -1,5 +1,11 @@
 <template>
-  <div class="movies page-shell" ref="containerRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
+  <div
+    class="movies page-shell"
+    :class="`display-mode-${displayMode}`"
+    ref="containerRef"
+    @mousemove="handleMouseMove"
+    @mouseleave="handleMouseLeave"
+  >
     <!-- 鼠标跟随后景 -->
     <div class="mouse-glow" :style="mouseGlowStyle"></div>
 
@@ -30,6 +36,10 @@
         />
       </div>
       <div class="filter-group">
+        <el-radio-group v-model="displayMode" class="display-mode-toggle">
+          <el-radio-button label="compact">紧凑模式</el-radio-button>
+          <el-radio-button label="wide">宽幅模式</el-radio-button>
+        </el-radio-group>
         <el-select v-model="filterStatus" placeholder="筛选状态" clearable class="infuse-select">
           <el-option label="全部" value="" />
           <el-option label="有字幕" value="with" />
@@ -251,12 +261,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Film, Check, Download, Document, Delete } from '@element-plus/icons-vue'
 import axios from 'axios'
 import { useAmbientEffects } from '../composables/useAmbientEffects'
+import { useMediaDisplayMode } from '../composables/useMediaDisplayMode'
 import { buildScanConfirmHtml, createScanDialogOptions } from '../utils/scanDialog'
 
 const api = axios.create({
@@ -276,7 +287,7 @@ const searching = ref(false)
 const downloading = ref(null)
 const loadingSubtitles = ref(false)
 const deletingSubtitle = ref(null)
-const isMobileView = ref(false)
+const { displayMode, artPreference } = useMediaDisplayMode()
 const {
   containerRef,
   particles,
@@ -304,33 +315,22 @@ const filteredMovies = computed(() => {
   return result
 })
 
-function updateViewportState() {
-  isMobileView.value = window.matchMedia('(max-width: 768px)').matches
-}
-
 function hasMediaArt(media) {
   return Boolean(media?.posterPath || media?.fanartPath)
 }
 
 function getMovieArtUrl(movie) {
   if (!movie?.id) return ''
-  const preferred = isMobileView.value ? 'fanart' : 'poster'
-  return `/api/art/movie/${movie.id}?preferred=${preferred}`
+  return `/api/art/movie/${movie.id}?preferred=${artPreference.value}`
 }
 
 onMounted(async () => {
-  updateViewportState()
-  window.addEventListener('resize', updateViewportState)
   try {
     await store.fetchMovies()
     movies.value = store.movies
   } catch (error) {
     ElMessage.error('获取电影列表失败')
   }
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateViewportState)
 })
 
 function handleMovieClick(movie) {
@@ -570,6 +570,26 @@ function handlePosterError(event) {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.display-mode-toggle {
+  --el-border-radius-base: 999px;
+}
+
+.display-mode-toggle :deep(.el-radio-button__inner) {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--infuse-text-secondary);
+  box-shadow: none;
+  min-width: 96px;
+}
+
+.display-mode-toggle :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: linear-gradient(135deg, rgba(34, 246, 255, 0.9), rgba(0, 168, 255, 0.9));
+  border-color: transparent;
+  color: #04111c;
 }
 
 .scan-btn {
@@ -618,6 +638,14 @@ function handlePosterError(event) {
   overflow: hidden;
   border: 1px solid rgba(119, 247, 255, 0.12);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.display-mode-wide .movies-grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.display-mode-wide .movie-poster {
+  aspect-ratio: 16 / 9;
 }
 
 .movie-poster::before {
@@ -806,6 +834,20 @@ function handlePosterError(event) {
   }
   .search-box {
     width: 100%;
+  }
+
+  .filter-group {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .display-mode-toggle {
+    width: 100%;
+  }
+
+  .display-mode-toggle :deep(.el-radio-button),
+  .display-mode-toggle :deep(.el-radio-button__inner) {
+    width: 50%;
   }
 }
 
