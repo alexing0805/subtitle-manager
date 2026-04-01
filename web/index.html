@@ -56,6 +56,16 @@
 
     body {
       min-height: 100vh;
+      cursor: none !important;
+    }
+
+    /* 强制隐藏所有可交互元素的小手光标 */
+    a, button, .el-button, .el-select, .el-input__wrapper,
+    [role="button"], .action-card, .stat-card, .clickable,
+    .el-slider__button, .el-checkbox__inner, .el-radio__inner,
+    .el-pagination .el-pager li, .el-pagination .btn-next,
+    .el-pagination .btn-prev, .el-tag, .el-dialog__headerbtn {
+      cursor: none !important;
     }
 
     #app {
