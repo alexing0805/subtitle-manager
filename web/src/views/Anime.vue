@@ -477,7 +477,7 @@ const filteredShows = computed(() => {
   if (filterStatus.value === 'with') {
     result = result.filter(s => (s.subtitleStats?.has ?? 0) > 0)
   } else if (filterStatus.value === 'without') {
-    result = result.filter(s => (s.subtitleStats?.has ?? 0) === 0)
+    result = result.filter(s => (s.subtitleStats?.missing ?? 0) > 0)
   }
 
   return result
@@ -486,7 +486,16 @@ const filteredShows = computed(() => {
 const currentSeasonEpisodes = computed(() => {
   if (!currentShow.value) return []
   const season = currentShow.value.seasons.find(s => s.number === activeSeasonTab.value)
-  return season ? season.episodes : []
+  if (!season) return []
+
+  let episodes = season.episodes
+  if (filterStatus.value === 'with') {
+    episodes = episodes.filter(episode => episode.hasSubtitle)
+  } else if (filterStatus.value === 'without') {
+    episodes = episodes.filter(episode => !episode.hasSubtitle)
+  }
+
+  return episodes
 })
 
 // 当前季的海报路径
