@@ -1,5 +1,7 @@
 import asyncio
+import gzip
 import hashlib
+import io
 import random
 from typing import Dict, List
 
@@ -166,6 +168,17 @@ class AssrtSource(BaseSubtitleSource):
                         return False
 
                     content = await file_response.read()
+
+                    # Assrt returns XML file containing gzip-compressed subtitle data
+                    # Try to detect and decompress gzip content inside
+                    if content[:2] == b"\x1f\x8b":
+                        logger.info("Assrt: detected gzip content, decompressing")
+                        try:
+                            content = gzip.GzipFile(fileobj=io.BytesIO(content)).read()
+                        except Exception as exc:
+                            logger.error(f"Assrt gzip decompress failed: {exc}")
+                            return False
+
                     saved_path = await self._save_download_content(
                         content,
                         save_path,
