@@ -139,24 +139,31 @@ class AssrtSource(BaseSubtitleSource):
                     soup = BeautifulSoup(html, "html.parser")
                     download_url = None
 
-                    download_btn = soup.find("a", class_="btn-download")
-                    if download_btn:
-                        download_url = download_btn.get("href")
+                    # Try to find download link by href containing .zip or download path
+                    for link in soup.find_all("a", href=True):
+                        href = link["href"]
+                        if ".zip" in href.lower() or ("/download/" in href.lower()):
+                            download_url = href
+                            break
 
+                    # Fallback: look for btn-download class
+                    if not download_url:
+                        download_btn = soup.find("a", class_="btn-download")
+                        if download_btn:
+                            download_url = download_btn.get("href")
+
+                    # Fallback: look for link text containing download-related keywords
                     if not download_url:
                         for link in soup.find_all("a"):
-                            if link.get_text(strip=True) in ["下载", "Download", "立即下载"]:
-                                download_url = link.get("href")
-                                break
+                            text = link.get_text(strip=True)
+                            if any(kw in text for kw in ["下载字幕", "立即下载", "Download", "下载"]) and link.get("href"):
+                                href = link["href"]
+                                if "/download/" in href or href.endswith(".zip"):
+                                    download_url = href
+                                    break
 
                     if not download_url:
-                        for link in soup.find_all("a", href=True):
-                            if "download" in link["href"].lower():
-                                download_url = link["href"]
-                                break
-
-                    if not download_url:
-                        logger.error("Assrt download link not found")
+                        logger.error("Assrt download link not found in HTML (url=%s)", subtitle_result.download_url)
                         return False
 
                     if not download_url.startswith("http"):
