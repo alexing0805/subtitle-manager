@@ -185,6 +185,7 @@
               <div class="activity-title">{{ activity.title }}</div>
               <div class="activity-meta">
                 <span class="activity-time">{{ formatTime(activity.time) }}</span>
+                <span class="activity-time-absolute">{{ formatAbsoluteTime(activity.time) }}</span>
                 <span class="activity-source" v-if="activity.source">{{ activity.source }}</span>
               </div>
             </div>
@@ -373,6 +374,10 @@ async function handleAutoDownload() {
 
 function formatTime(time) {
   return dayjs(time).fromNow()
+}
+
+function formatAbsoluteTime(time) {
+  return dayjs(time).format('YYYY-MM-DD HH:mm:ss')
 }
 
 function getActivityIcon(type) {
@@ -906,6 +911,10 @@ function getStatusText(status) {
   gap: 12px;
   font-size: 12px;
   color: var(--infuse-text-muted);
+}
+
+.activity-time-absolute {
+  opacity: 0.85;
 }
 
 .activity-source {

@@ -1545,6 +1545,8 @@ class SubtitleManager:
         before_paths = set(self._get_subtitle_candidates(video_path))
         download_state: bool | str = False
 
+        video_name = os.path.splitext(os.path.basename(video_path))[0]
+
         async def finalize_download() -> dict:
             actual_path = self._resolve_downloaded_subtitle_path(
                 download_result=download_state,
@@ -1553,6 +1555,7 @@ class SubtitleManager:
                 before_paths=before_paths,
             )
             if not actual_path:
+                self._record_activity('download', f'手动下载字幕失败: {video_name}', 'failed', source_name)
                 return {"success": False, "message": "字幕下载成功但未找到保存的字幕文件"}
             normalized = self._normalize_downloaded_subtitle(video_path, actual_path)
             plex_refresh = await self._refresh_plex_media(video_path)
@@ -1565,6 +1568,7 @@ class SubtitleManager:
                 "plexRefresh": plex_refresh,
             }
             self._mark_cached_video_has_subtitle(video_path, True)
+            self._record_activity('download', f'手动下载字幕成功: {video_name}', 'success', source_name)
             if normalized.get("warning"):
                 result["warning"] = normalized["warning"]
             return result
@@ -1587,6 +1591,7 @@ class SubtitleManager:
             if download_state:
                 return await finalize_download()
             logger.warning(f"[download] Direct download failed (source returned False)")
+            self._record_activity('download', f'手动下载字幕失败: {video_name}', 'failed', source_name)
             return {"success": False, "message": "下载失败"}
 
         video_info = NFOParser.get_video_info_with_nfo(video_path)
@@ -1600,6 +1605,7 @@ class SubtitleManager:
                 return await finalize_download()
             break
 
+        self._record_activity('download', f'手动下载字幕失败: {video_name}', 'failed', source_name)
         return {"success": False, "message": "下载失败"}
 
     def _scan_series_library(self, base_dir: str, media_type: str) -> list:
