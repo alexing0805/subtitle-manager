@@ -150,14 +150,33 @@
               <span>{{ currentShow.episodeCount }} 集</span>
             </div>
             <div class="detail-stats">
-              <div class="stat-box has">
+              <button
+                type="button"
+                class="stat-box all"
+                :class="{ active: !filterStatus }"
+                @click="filterStatus = ''"
+              >
+                <span class="stat-number">{{ currentShow.episodeCount }}</span>
+                <span class="stat-label">全部</span>
+              </button>
+              <button
+                type="button"
+                class="stat-box has"
+                :class="{ active: filterStatus === 'with' }"
+                @click="filterStatus = 'with'"
+              >
                 <span class="stat-number">{{ currentShow.subtitleStats.has }}</span>
                 <span class="stat-label">有字幕</span>
-              </div>
-              <div class="stat-box missing">
+              </button>
+              <button
+                type="button"
+                class="stat-box missing"
+                :class="{ active: filterStatus === 'without' }"
+                @click="filterStatus = 'without'"
+              >
                 <span class="stat-number">{{ currentShow.subtitleStats.missing }}</span>
                 <span class="stat-label">无字幕</span>
-              </div>
+              </button>
             </div>
           </div>
         </div>
@@ -1261,16 +1280,39 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 .detail-stats {
   display: flex;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .stat-box {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 12px 24px;
   background: var(--infuse-bg-card);
   border-radius: var(--infuse-radius-md);
   border: 1px solid var(--infuse-border);
+  appearance: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-box:hover {
+  transform: translateY(-2px);
+  border-color: var(--infuse-border-hover);
+}
+
+.stat-box.active {
+  background: var(--infuse-bg-hover);
+  border-color: var(--infuse-accent);
+  box-shadow: 0 0 0 1px rgba(34, 246, 255, 0.18), 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.stat-box.all {
+  border-color: rgba(119, 247, 255, 0.25);
 }
 
 .stat-box.has {
@@ -1285,6 +1327,10 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   font-size: 24px;
   font-weight: 700;
   color: var(--infuse-text-primary);
+}
+
+.stat-box.all .stat-number {
+  color: var(--infuse-accent);
 }
 
 .stat-box.has .stat-number {
