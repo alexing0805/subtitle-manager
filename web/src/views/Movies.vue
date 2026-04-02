@@ -875,6 +875,7 @@ function handlePosterError(event) {
   }
   .toolbar {
     flex-direction: column;
+    gap: 16px;
   }
   .search-box {
     width: 100%;
@@ -882,7 +883,9 @@ function handlePosterError(event) {
 
   .filter-group {
     width: 100%;
-    justify-content: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .display-mode-toggle {
@@ -895,9 +898,12 @@ function handlePosterError(event) {
     width: 100%;
   }
 
-  .display-mode-toggle :deep(.el-radio-button__inner) {
+  .display-mode-toggle :deep(.el-radio-button__inner),
+  .filter-group .el-button,
+  .filter-group .infuse-select {
     width: 100%;
     min-width: 0;
+    margin-left: 0 !important;
   }
 
   .display-mode-compact .movies-grid {
