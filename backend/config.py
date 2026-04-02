@@ -3,7 +3,12 @@
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
+import json
 import os
+import tempfile
+
+
+SETTINGS_JSON_PATH = "/app/data/settings.json"
 
 
 class Settings(BaseSettings):
@@ -35,6 +40,8 @@ class Settings(BaseSettings):
     # 日志级别
     LOG_LEVEL: str = "INFO"
     
+    API_KEY: Optional[str] = None
+
     # OpenSubtitles API 配置（可选）
     OPENSUBTITLES_API_KEY: Optional[str] = None
     OPENSUBTITLES_USERNAME: Optional[str] = None
@@ -102,32 +109,67 @@ class Settings(BaseSettings):
         return [s.strip() for s in self.SUBTITLE_SOURCES.split(',') if s.strip()]
 
 
-def restore_config_from_backup():
-    """从备份恢复配置到 .env 文件"""
-    env_path = '.env'
-    backup_path = '/app/data/.env.backup'
-    
-    # 如果 .env 不存在但有备份，从备份恢复
-    if not os.path.exists(env_path) and os.path.exists(backup_path):
-        try:
-            with open(backup_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            with open(env_path, 'w', encoding='utf-8') as f:
-                f.write(content)
-            print(f"[Config] 配置已从备份恢复: {backup_path} -> {env_path}")
-            return True
-        except Exception as e:
-            print(f"[Config] 从备份恢复配置失败: {e}")
-    return False
+def _load_persisted_settings() -> dict:
+    """加载用户持久化设置（settings.json）。"""
+    if not os.path.exists(SETTINGS_JSON_PATH):
+        return {}
+    try:
+        with open(SETTINGS_JSON_PATH, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception as e:
+        print(f"[Config] 加载持久化设置失败: {e}")
+        return {}
+
+
+def save_persisted_settings(settings_data: dict) -> bool:
+    """原子保存用户持久化设置（settings.json）。"""
+    try:
+        os.makedirs(os.path.dirname(SETTINGS_JSON_PATH), exist_ok=True)
+        with tempfile.NamedTemporaryFile('w', encoding='utf-8', dir=os.path.dirname(SETTINGS_JSON_PATH), delete=False) as tmp:
+            json.dump(settings_data, tmp, ensure_ascii=False, indent=2)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+            tmp_path = tmp.name
+        os.replace(tmp_path, SETTINGS_JSON_PATH)
+        return True
+    except Exception as e:
+        print(f"[Config] 保存持久化设置失败: {e}")
+        return False
+
+
+def _apply_runtime_env(settings_obj: Settings):
+    """为仍直接读取 os.environ 的旧模块同步运行时环境变量。"""
+    env_map = {
+        'API_KEY': settings_obj.API_KEY,
+        'OPENSUBTITLES_API_KEY': settings_obj.OPENSUBTITLES_API_KEY,
+        'OPENSUBTITLES_USERNAME': settings_obj.OPENSUBTITLES_USERNAME,
+        'OPENSUBTITLES_PASSWORD': settings_obj.OPENSUBTITLES_PASSWORD,
+        'TMDB_API_KEY': settings_obj.TMDB_API_KEY,
+        'PLEX_SERVER_URL': settings_obj.PLEX_SERVER_URL,
+        'PLEX_TOKEN': settings_obj.PLEX_TOKEN,
+        'PLEX_PATH_MAPPINGS': settings_obj.PLEX_PATH_MAPPINGS,
+        'NASTOOL_WEBHOOK_TOKEN': settings_obj.NASTOOL_WEBHOOK_TOKEN,
+        'NASTOOL_PATH_MAPPINGS': settings_obj.NASTOOL_PATH_MAPPINGS,
+        'SUBTITLE_SOURCES': settings_obj.SUBTITLE_SOURCES,
+        'LOG_LEVEL': settings_obj.LOG_LEVEL,
+    }
+    for key, value in env_map.items():
+        if value is None or value == '':
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = str(value)
 
 
 def load_settings() -> Settings:
-    """加载设置 - 每次调用都会重新读取配置文件"""
-    # 尝试从备份恢复
-    restore_config_from_backup()
-    
-    # 创建新的 Settings 实例（会重新读取 .env 文件）
-    return Settings()
+    """加载设置：先读环境/默认值，再应用 settings.json 持久化配置。"""
+    loaded = Settings()
+    persisted = _load_persisted_settings()
+    for key, value in persisted.items():
+        if hasattr(loaded, key):
+            setattr(loaded, key, value)
+    _apply_runtime_env(loaded)
+    return loaded
 
 
 # 全局设置实例 - 首次加载
@@ -162,6 +204,7 @@ class Config:
         self.SUBTITLE_SOURCES = settings.get_subtitle_sources()
         self.MIN_FILE_SIZE = settings.MIN_FILE_SIZE_MB * 1024 * 1024
         self.LOG_LEVEL = settings.LOG_LEVEL
+        self.API_KEY = settings.API_KEY
         self.OPENSUBTITLES_API_KEY = settings.OPENSUBTITLES_API_KEY
         self.OPENSUBTITLES_USERNAME = settings.OPENSUBTITLES_USERNAME
         self.OPENSUBTITLES_PASSWORD = settings.OPENSUBTITLES_PASSWORD

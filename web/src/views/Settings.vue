@@ -344,16 +344,20 @@ async function handleSave() {
       body: JSON.stringify(settings.value)
     })
 
-    if (!response.ok) {
-      throw new Error('保存失败')
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.detail || data?.message || '保存失败')
     }
 
     // API Key 保存到本地
     if (settings.value.apiKey) {
       localStorage.setItem('apiKey', settings.value.apiKey)
+    } else {
+      localStorage.removeItem('apiKey')
     }
 
-    ElMessage.success('设置已保存')
+    ElMessage.success(data?.message || '设置已保存')
   } catch (error) {
     ElMessage.error('保存失败: ' + error.message)
   } finally {

@@ -2064,105 +2064,48 @@ class SubtitleManager:
         }
     
     def update_settings(self, settings_data: dict):
-        """更新设置"""
+        """更新设置（持久化到 /app/data/settings.json）。"""
         try:
-            import json
+            from backend.config import reload_settings, save_persisted_settings
+
             auto_delay_min = max(0, int(settings_data.get('autoDownloadDelayMinSeconds', 6)))
             auto_delay_max = max(auto_delay_min, int(settings_data.get('autoDownloadDelayMaxSeconds', 14)))
-            
-            # 读取当前 .env 文件
-            env_path = '/app/.env'
-            env_lines = []
-            
-            if os.path.exists(env_path):
-                with open(env_path, 'r', encoding='utf-8') as f:
-                    env_lines = f.readlines()
-            
-            # 构建新的配置字典
-            new_settings = {
+
+            persisted_settings = {
                 'MOVIE_DIR': settings_data.get('movieDir', '/movies'),
                 'TV_DIR': settings_data.get('tvDir', '/tvshows'),
                 'ANIME_DIR': settings_data.get('animeDir', '/anime'),
-                'SCAN_INTERVAL': str(settings_data.get('scanInterval', 30)),
-                'MIN_FILE_SIZE_MB': str(settings_data.get('minFileSize', 100)),
-                'MAX_CONCURRENT_DOWNLOADS': str(settings_data.get('maxConcurrent', 3)),
+                'SCAN_INTERVAL': int(settings_data.get('scanInterval', 30)),
+                'MIN_FILE_SIZE_MB': int(settings_data.get('minFileSize', 100)),
+                'MAX_CONCURRENT_DOWNLOADS': int(settings_data.get('maxConcurrent', 3)),
                 'SUBTITLE_SOURCES': ','.join(settings_data.get('subtitleSources', ['shooter', 'assrt', 'opensubtitles', 'subhd'])),
-                'OPENSUBTITLES_API_KEY': settings_data.get('openSubtitlesApiKey', ''),
-                'OPENSUBTITLES_USERNAME': settings_data.get('openSubtitlesUsername', ''),
-                'OPENSUBTITLES_PASSWORD': settings_data.get('openSubtitlesPassword', ''),
-                'TMDB_API_KEY': settings_data.get('tmdbApiKey', ''),
-                'PLEX_NAMING_FORMAT': 'true' if settings_data.get('plexNamingFormat', True) else 'false',
-                'PLEX_SERVER_URL': settings_data.get('plexServerUrl', ''),
-                'PLEX_TOKEN': settings_data.get('plexToken', ''),
-                'PLEX_REFRESH_AFTER_DOWNLOAD': 'true' if settings_data.get('plexRefreshAfterDownload', True) else 'false',
-                'PLEX_PATH_MAPPINGS': settings_data.get('plexPathMappings', ''),
-                'AUTO_DOWNLOAD_DELAY_MIN_SECONDS': str(auto_delay_min),
-                'AUTO_DOWNLOAD_DELAY_MAX_SECONDS': str(auto_delay_max),
-                'AUTO_DOWNLOAD': 'true' if settings_data.get('autoDownload', True) else 'false',
-                'BACKUP_EXISTING_SUBTITLE': 'true' if settings_data.get('backupExisting', False) else 'false',
+                'OPENSUBTITLES_API_KEY': settings_data.get('openSubtitlesApiKey', '') or None,
+                'OPENSUBTITLES_USERNAME': settings_data.get('openSubtitlesUsername', '') or None,
+                'OPENSUBTITLES_PASSWORD': settings_data.get('openSubtitlesPassword', '') or None,
+                'TMDB_API_KEY': settings_data.get('tmdbApiKey', '') or None,
+                'PLEX_NAMING_FORMAT': bool(settings_data.get('plexNamingFormat', True)),
+                'PLEX_SERVER_URL': settings_data.get('plexServerUrl', '') or None,
+                'PLEX_TOKEN': settings_data.get('plexToken', '') or None,
+                'PLEX_REFRESH_AFTER_DOWNLOAD': bool(settings_data.get('plexRefreshAfterDownload', True)),
+                'PLEX_PATH_MAPPINGS': settings_data.get('plexPathMappings', '') or None,
+                'AUTO_DOWNLOAD_DELAY_MIN_SECONDS': auto_delay_min,
+                'AUTO_DOWNLOAD_DELAY_MAX_SECONDS': auto_delay_max,
+                'AUTO_DOWNLOAD': bool(settings_data.get('autoDownload', True)),
+                'BACKUP_EXISTING_SUBTITLE': bool(settings_data.get('backupExisting', False)),
                 'LOG_LEVEL': settings_data.get('logLevel', 'INFO'),
-                'NASTOOL_ENABLED': 'true' if settings_data.get('nastoolEnabled', False) else 'false',
-                'NASTOOL_WEBHOOK_TOKEN': settings_data.get('nastoolWebhookToken', ''),
-                'API_KEY': settings_data.get('apiKey', ''),
-                'NASTOOL_PATH_MAPPINGS': settings_data.get('nastoolPathMappings', ''),
+                'NASTOOL_ENABLED': bool(settings_data.get('nastoolEnabled', False)),
+                'NASTOOL_WEBHOOK_TOKEN': settings_data.get('nastoolWebhookToken', '') or None,
+                'NASTOOL_PATH_MAPPINGS': settings_data.get('nastoolPathMappings', '') or None,
+                'API_KEY': settings_data.get('apiKey', '') or None,
             }
-            
-            # 写入 .env 文件
-            with open(env_path, 'w', encoding='utf-8') as f:
-                for key, value in new_settings.items():
-                    f.write(f'{key}={value}\n')
-            
-            # 同时备份到数据目录（持久化存储）
-            try:
-                backup_path = '/app/data/.env.backup'
-                os.makedirs('/app/data', exist_ok=True)
-                with open(backup_path, 'w', encoding='utf-8') as f:
-                    for key, value in new_settings.items():
-                        f.write(f'{key}={value}\n')
-                logger.info(f"配置已备份到: {backup_path}")
-            except Exception as e:
-                logger.warning(f"备份配置失败: {e}")
-            
-            # 更新当前 settings 对象
-            settings.MOVIE_DIR = new_settings['MOVIE_DIR']
-            settings.TV_DIR = new_settings['TV_DIR']
-            settings.ANIME_DIR = new_settings['ANIME_DIR']
-            settings.SCAN_INTERVAL = int(new_settings['SCAN_INTERVAL'])
-            settings.MIN_FILE_SIZE_MB = int(new_settings['MIN_FILE_SIZE_MB'])
-            settings.MAX_CONCURRENT_DOWNLOADS = int(new_settings['MAX_CONCURRENT_DOWNLOADS'])
-            settings.SUBTITLE_SOURCES = new_settings['SUBTITLE_SOURCES']
-            settings.OPENSUBTITLES_API_KEY = new_settings['OPENSUBTITLES_API_KEY'] or None
-            settings.OPENSUBTITLES_USERNAME = new_settings['OPENSUBTITLES_USERNAME'] or None
-            settings.OPENSUBTITLES_PASSWORD = new_settings['OPENSUBTITLES_PASSWORD'] or None
-            settings.TMDB_API_KEY = new_settings['TMDB_API_KEY'] or None
-            settings.PLEX_NAMING_FORMAT = new_settings['PLEX_NAMING_FORMAT'] == 'true'
-            settings.PLEX_SERVER_URL = new_settings['PLEX_SERVER_URL'] or None
-            settings.PLEX_TOKEN = new_settings['PLEX_TOKEN'] or None
-            settings.PLEX_REFRESH_AFTER_DOWNLOAD = new_settings['PLEX_REFRESH_AFTER_DOWNLOAD'] == 'true'
-            settings.PLEX_PATH_MAPPINGS = new_settings['PLEX_PATH_MAPPINGS'] or None
-            settings.AUTO_DOWNLOAD_DELAY_MIN_SECONDS = int(new_settings['AUTO_DOWNLOAD_DELAY_MIN_SECONDS'])
-            settings.AUTO_DOWNLOAD_DELAY_MAX_SECONDS = int(new_settings['AUTO_DOWNLOAD_DELAY_MAX_SECONDS'])
-            settings.AUTO_DOWNLOAD = new_settings['AUTO_DOWNLOAD'] == 'true'
-            settings.BACKUP_EXISTING_SUBTITLE = new_settings['BACKUP_EXISTING_SUBTITLE'] == 'true'
-            settings.LOG_LEVEL = new_settings['LOG_LEVEL']
-            settings.NASTOOL_ENABLED = new_settings['NASTOOL_ENABLED'] == 'true'
-            settings.NASTOOL_WEBHOOK_TOKEN = new_settings['NASTOOL_WEBHOOK_TOKEN'] or None
-            settings.NASTOOL_PATH_MAPPINGS = new_settings['NASTOOL_PATH_MAPPINGS'] or None
-            settings.API_KEY = new_settings['API_KEY'] or None
 
-            # 重新初始化 TMDB API
-            tmdb_module.init_tmdb_api(settings.TMDB_API_KEY)
-            
-            logger.info("设置已更新并保存到 .env 文件")
-            
-            # 重新加载配置
-            from backend.config import reload_settings
-            new_settings = reload_settings()
-            
-            # 使用新配置重新初始化 TMDB API
-            tmdb_module.init_tmdb_api(new_settings.TMDB_API_KEY)
-            
-            return {"success": True, "message": "设置已保存"}
+            if not save_persisted_settings(persisted_settings):
+                return {"success": False, "message": "保存设置文件失败"}
+
+            new_runtime_settings = reload_settings()
+            tmdb_module.init_tmdb_api(new_runtime_settings.TMDB_API_KEY)
+            logger.info("设置已更新并保存到 /app/data/settings.json")
+            return {"success": True, "message": "设置已保存", "settings": self.get_settings()}
         except Exception as e:
             logger.error(f"保存设置失败: {e}")
             return {"success": False, "message": str(e)}

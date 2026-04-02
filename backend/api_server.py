@@ -767,7 +767,11 @@ async def update_settings(settings: Settings):
     """更新设置"""
     try:
         result = subtitle_manager.update_settings(settings.dict())
-        return {"success": True, "message": "设置已保存", "data": result}
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("message", "设置保存失败"))
+        return {"success": True, "message": result.get("message", "设置已保存"), "data": result}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"更新设置失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
