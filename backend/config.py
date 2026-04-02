@@ -185,46 +185,4 @@ def reload_settings():
     return settings
 
 
-# 兼容旧代码的 Config 类
-class Config:
-    """兼容旧代码的配置类"""
-    
-    def __init__(self):
-        self._refresh()
-    
-    def _refresh(self):
-        """从全局 settings 刷新配置"""
-        self.MOVIE_DIR = settings.MOVIE_DIR
-        self.TV_DIR = settings.TV_DIR
-        self.ANIME_DIR = settings.ANIME_DIR
-        self.WATCH_DIRS = settings.get_watch_dirs()
-        self.SCAN_INTERVAL = settings.SCAN_INTERVAL
-        self.VIDEO_EXTENSIONS = settings.VIDEO_EXTENSIONS
-        self.SUBTITLE_EXTENSIONS = settings.SUBTITLE_EXTENSIONS
-        self.CHINESE_LANG_CODES = settings.CHINESE_LANG_CODES
-        self.SUBTITLE_SOURCES = settings.get_subtitle_sources()
-        self.MIN_FILE_SIZE = settings.MIN_FILE_SIZE_MB * 1024 * 1024
-        self.LOG_LEVEL = settings.LOG_LEVEL
-        self.API_KEY = settings.API_KEY
-        self.OPENSUBTITLES_API_KEY = settings.OPENSUBTITLES_API_KEY
-        self.OPENSUBTITLES_USERNAME = settings.OPENSUBTITLES_USERNAME
-        self.OPENSUBTITLES_PASSWORD = settings.OPENSUBTITLES_PASSWORD
-        self.TMDB_API_KEY = settings.TMDB_API_KEY
-        self.AUTO_DOWNLOAD = settings.AUTO_DOWNLOAD
-        self.AUTO_DOWNLOAD_DELAY_MIN_SECONDS = settings.AUTO_DOWNLOAD_DELAY_MIN_SECONDS
-        self.AUTO_DOWNLOAD_DELAY_MAX_SECONDS = settings.AUTO_DOWNLOAD_DELAY_MAX_SECONDS
-        self.BACKUP_EXISTING_SUBTITLE = settings.BACKUP_EXISTING_SUBTITLE
-        self.MAX_CONCURRENT_DOWNLOADS = settings.MAX_CONCURRENT_DOWNLOADS
-        self.PLEX_NAMING_FORMAT = settings.PLEX_NAMING_FORMAT
-        self.PLEX_SERVER_URL = settings.PLEX_SERVER_URL
-        self.PLEX_TOKEN = settings.PLEX_TOKEN
-        self.PLEX_REFRESH_AFTER_DOWNLOAD = settings.PLEX_REFRESH_AFTER_DOWNLOAD
-        self.PLEX_PATH_MAPPINGS = settings.PLEX_PATH_MAPPINGS
-        self.NASTOOL_ENABLED = settings.NASTOOL_ENABLED
-        self.NASTOOL_WEBHOOK_TOKEN = settings.NASTOOL_WEBHOOK_TOKEN
-        self.NASTOOL_PATH_MAPPINGS = settings.NASTOOL_PATH_MAPPINGS
-
-    def get_watch_dirs(self) -> List[str]:
-        """获取监控目录列表"""
-        self._refresh()  # 每次访问时刷新
-        return self.WATCH_DIRS
+# 移除 Config 静态兼容类，统一使用全局 settings 对象

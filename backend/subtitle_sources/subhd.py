@@ -358,7 +358,7 @@ class SubHDSource(BaseSubtitleSource):
                     logger.warning(f"SubHD content too small: {len(content)} bytes")
                     return False
 
-                return await self._save_subtitle(content, save_path, file_url=file_url)
+                return await self._save_download_content(content, save_path, file_url=file_url)
         except Exception as exc:
             logger.error(f"SubHD download error: {exc}")
             import traceback
@@ -377,145 +377,8 @@ class SubHDSource(BaseSubtitleSource):
             logger.error(f"Captcha solver error: {exc}")
             return None
 
-    def _resolve_save_path(self, save_path: str, extension: str) -> str:
-        """Replace the requested extension with the detected subtitle extension."""
-        base_path, _ = os.path.splitext(save_path)
-        normalized_extension = extension.lower()
-        if not normalized_extension.startswith("."):
-            normalized_extension = f".{normalized_extension}"
-        return base_path + normalized_extension
+    # 注：已移除与 BaseSubtitleSource 重复的方法：
+    # _resolve_save_path, _detect_subtitle_extension, _archive_member_score,
+    # _pick_archive_member, _save_archive_member, _save_subtitle
+    # 现在统一使用基类的 _save_download_content 和 _pick_archive_member
 
-    def _detect_subtitle_extension(self, content: bytes, file_url: str | None = None) -> str:
-        """Infer subtitle format from the download URL or file signature."""
-        if file_url:
-            url_path = file_url.split("?", 1)[0].lower()
-            _, ext = os.path.splitext(url_path)
-            if ext in [".srt", ".ass", ".ssa", ".vtt", ".smi", ".sami", ".sub", ".idx", ".sup", ".zip", ".rar", ".7z"]:
-                return ext
-
-        if content[:2] == b"PK":
-            return ".zip"
-        if content[:4] == b"Rar!":
-            return ".rar"
-        if content[:2] == b"PG":
-            return ".sup"
-        if content[:512].lstrip().lower().startswith(b"<sami") or b"<sync" in content[:4096].lower():
-            return ".smi"
-        if content.startswith(b"[Script Info]") or b"[V4+ Styles]" in content[:2048]:
-            return ".ass"
-        if b"-->" in content[:2048]:
-            return ".srt"
-        return ".srt"
-
-    def _archive_member_score(self, archive_name: str) -> tuple[int, int, int, str]:
-        """Prefer simplified Chinese subtitle members and more usable formats inside archives."""
-        raw_name = archive_name.replace("\\", "/").split("/")[-1]
-        normalized = raw_name.lower()
-        stem, extension = os.path.splitext(normalized)
-
-        format_score = {
-            ".srt": 90,
-            ".ass": 80,
-            ".ssa": 78,
-            ".vtt": 72,
-            ".smi": 68,
-            ".sami": 68,
-            ".sup": 55,
-            ".idx": 50,
-            ".sub": 48,
-        }.get(extension, 0)
-
-        has_simplified = ("简" in raw_name) or ("chs" in normalized)
-        has_traditional = ("繁" in raw_name) or ("cht" in normalized)
-        has_bilingual = ("双语" in raw_name) or ("中英" in raw_name)
-        has_chinese = has_simplified or has_traditional or any(marker in stem for marker in ("zh", "zho", "chi", "中文", "中字"))
-        has_foreign_only = any(marker in stem for marker in ("eng", "english", "英文", "英语", "jpn", "japanese", "日语", "korean", "韩语")) and not has_chinese
-
-        priority_bucket = 0
-        if has_simplified and has_bilingual:
-            priority_bucket = 5
-        elif has_simplified:
-            priority_bucket = 4
-        elif has_bilingual and not has_traditional:
-            priority_bucket = 3
-        elif has_traditional:
-            priority_bucket = 2
-        elif has_chinese:
-            priority_bucket = 1
-
-        language_score = 0
-        if has_chinese:
-            language_score += 80
-        if has_simplified:
-            language_score += 40
-        if has_traditional:
-            language_score -= 10
-        if has_bilingual:
-            language_score += 15
-        if has_foreign_only:
-            language_score -= 40
-
-        return (priority_bucket, language_score, format_score, normalized)
-
-    def _pick_archive_member(self, names: List[str]) -> str | None:
-        """Pick the best subtitle member from a compressed archive."""
-        candidates = [
-            name for name in names
-            if os.path.splitext(name)[1].lower() in self.SUPPORTED_SUBTITLE_EXTENSIONS
-        ]
-        if not candidates:
-            logger.info(f"SubHD archive subtitle candidates: none from {names}")
-            return None
-        scored = sorted(((name, self._archive_member_score(name)) for name in candidates), key=lambda item: item[1], reverse=True)
-        logger.info(
-            "SubHD archive subtitle candidates: " + ", ".join(
-                f"{name}=>bucket={score[0]},lang={score[1]},fmt={score[2]}" for name, score in scored
-            )
-        )
-        selected = scored[0][0]
-        logger.info(f"SubHD archive subtitle selected: {selected}")
-        return selected
-
-    async def _save_archive_member(self, archive, member_name: str, save_path: str) -> str:
-        """Extract one member from an archive to the target directory."""
-        extension = os.path.splitext(member_name)[1] or ".srt"
-        target_path = self._resolve_save_path(save_path, extension)
-        async with aiofiles.open(target_path, "wb") as file_obj:
-            await file_obj.write(archive.read(member_name))
-        logger.info(f"Subtitle saved: {target_path}")
-        return target_path
-
-    async def _save_subtitle(self, content: bytes, save_path: str, file_url: str | None = None) -> str | None:
-        """Save subtitles using their real format when available."""
-        try:
-            detected_extension = self._detect_subtitle_extension(content, file_url)
-
-            if detected_extension == ".zip":
-                import zipfile
-
-                try:
-                    with zipfile.ZipFile(io.BytesIO(content)) as archive:
-                        member_name = self._pick_archive_member(archive.namelist())
-                        if not member_name:
-                            logger.warning("ZIP archive does not contain a supported subtitle file")
-                            return None
-                        return await self._save_archive_member(archive, member_name, save_path)
-                except Exception as exc:
-                    logger.error(f"Failed to extract ZIP subtitle: {exc}")
-                    return None
-
-            if detected_extension == ".rar":
-                target_path = self._resolve_save_path(save_path, ".rar")
-                async with aiofiles.open(target_path, "wb") as file_obj:
-                    await file_obj.write(content)
-                logger.info(f"RAR archive saved: {target_path}")
-                return target_path
-
-            target_path = self._resolve_save_path(save_path, detected_extension)
-            async with aiofiles.open(target_path, "wb") as file_obj:
-                await file_obj.write(content)
-            logger.info(f"Subtitle saved: {target_path}")
-            return target_path
-        except Exception as exc:
-            logger.error(f"Failed to save subtitle file: {exc}")
-            return None

@@ -10,40 +10,27 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 import os
+import re
 import shutil
-import logging
 from pathlib import Path
 import asyncio
 import time
 from collections import defaultdict
+from loguru import logger
 
 from backend.subtitle_manager import SubtitleManager
-from backend.config import Config, reload_settings, settings
+from backend.config import reload_settings, settings
 import backend.tmdb_api as tmdb_module
 from backend.nastool_webhook import NASToolWebhookHandler, NASToolWebhookData
 
-# 配置日志 - 脱敏敏感信息
-class SensitiveFilter(logging.Filter):
-    """过滤日志中的敏感信息"""
-    SENSITIVE_KEYS = ['token', 'password', 'apikey', 'secret', 'plex_token', 'nastool_webhook_token']
-    
-    def filter(self, record):
-        msg = record.getMessage()
-        for key in self.SENSITIVE_KEYS:
-            if key in msg.lower():
-                # 将敏感值替换为 ***
-                import re
-                msg = re.sub(rf'({key}[=:]\s*)[^&\s]+', rf'\1***', msg, flags=re.IGNORECASE)
-        record.msg = msg
-        return True
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-logger.addFilter(SensitiveFilter())
+def _sanitize_log_message(msg: str) -> str:
+    """对日志消息中的敏感信息进行脱敏"""
+    sensitive_keys = ['token', 'password', 'apikey', 'secret', 'plex_token', 'nastool_webhook_token']
+    for key in sensitive_keys:
+        if key in msg.lower():
+            msg = re.sub(rf'({key}[=:]\s*)[^&\s]+', rf'\1***', msg, flags=re.IGNORECASE)
+    return msg
 
 # ==================== API 限流器 ====================
 
@@ -67,7 +54,12 @@ class RateLimiter:
                 t for t in self._requests[client_id]
                 if now - t < self.window_size
             ]
-            
+
+            # 清理空条目，防止内存泄漏
+            if not self._requests[client_id]:
+                del self._requests[client_id]
+                return True
+
             if len(self._requests[client_id]) >= self.requests_per_minute:
                 return False
             
@@ -117,7 +109,7 @@ def get_cors_origins() -> List[str]:
 app = FastAPI(
     title="字幕管理器 API",
     description="字幕管理器 RESTful API",
-    version="1.0.0",
+    version="1.9.1",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json"
@@ -138,10 +130,8 @@ app.add_middleware(
 app.middleware("http")(rate_limit_middleware)
 
 # ==================== API Key 认证 ====================
-from fastapi import Header, HTTPException
 
 # ==================== 全局配置和字幕管理器实例
-config = Config()
 subtitle_manager = SubtitleManager()
 
 # NASTool Webhook 处理器
@@ -156,6 +146,14 @@ async def startup_event():
     # 使用新配置重新初始化 TMDB API
     tmdb_module.init_tmdb_api(new_settings.TMDB_API_KEY)
     logger.info("应用启动完成，配置已加载")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """应用关闭时清理资源"""
+    if tmdb_module.tmdb_api:
+        await tmdb_module.tmdb_api.close()
+    logger.info("应用关闭，资源已清理")
 
 
 # ==================== 健康检查 ====================
@@ -209,7 +207,7 @@ async def health_check():
     return HealthStatus(
         status=overall_status,
         timestamp=datetime.now().isoformat(),
-        version="1.0.0",
+        version="1.9.1",
         uptime_seconds=time.monotonic(),
         components=components
     )
@@ -831,12 +829,7 @@ async def cancel_task(task_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# -------------------- 健康检查 --------------------
-
-@app.get("/health")
-async def health_check():
-    """健康检查"""
-    return {"status": "healthy", "service": "subtitle-manager"}
+# (重复的 /health 端点已移除，使用 L171 处的详细版本)
 
 
 # -------------------- 海报图片服务 --------------------
@@ -869,7 +862,7 @@ async def get_poster(movie_id: int):
     if not poster_path or not os.path.exists(poster_path):
         raise HTTPException(status_code=404, detail="海报不存在")
 
-    return FileResponse(poster_path)
+    return FileResponse(poster_path, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/api/art/movie/{movie_id}")
@@ -883,7 +876,7 @@ async def get_movie_art(movie_id: int, preferred: str = "poster"):
     if not art_path:
         raise HTTPException(status_code=404, detail="图片不存在")
 
-    return FileResponse(art_path)
+    return FileResponse(art_path, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/api/poster/tvshow/{show_id}")
@@ -897,7 +890,7 @@ async def get_tvshow_poster(show_id: int):
     if not poster_path or not os.path.exists(poster_path):
         raise HTTPException(status_code=404, detail="海报不存在")
 
-    return FileResponse(poster_path)
+    return FileResponse(poster_path, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/api/art/tvshow/{show_id}")
@@ -911,7 +904,7 @@ async def get_tvshow_art(show_id: int, preferred: str = "poster"):
     if not art_path:
         raise HTTPException(status_code=404, detail="图片不存在")
 
-    return FileResponse(art_path)
+    return FileResponse(art_path, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/api/poster/tvshow/{show_id}/season/{season_number}")
@@ -934,7 +927,7 @@ async def get_season_poster(show_id: int, season_number: int):
     if not poster_path or not os.path.exists(poster_path):
         raise HTTPException(status_code=404, detail="海报不存在")
 
-    return FileResponse(poster_path)
+    return FileResponse(poster_path, headers={"Cache-Control": "public, max-age=86400"})
 
 
 # -------------------- TMDB API 测试 --------------------
@@ -950,7 +943,7 @@ async def get_anime_poster(show_id: int):
     if not poster_path or not os.path.exists(poster_path):
         raise HTTPException(status_code=404, detail="海报不存在")
 
-    return FileResponse(poster_path)
+    return FileResponse(poster_path, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/api/art/anime/{show_id}")
@@ -964,7 +957,7 @@ async def get_anime_art(show_id: int, preferred: str = "poster"):
     if not art_path:
         raise HTTPException(status_code=404, detail="图片不存在")
 
-    return FileResponse(art_path)
+    return FileResponse(art_path, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/api/poster/anime/{show_id}/season/{season_number}")
@@ -987,7 +980,7 @@ async def get_anime_season_poster(show_id: int, season_number: int):
     if not poster_path or not os.path.exists(poster_path):
         raise HTTPException(status_code=404, detail="海报不存在")
 
-    return FileResponse(poster_path)
+    return FileResponse(poster_path, headers={"Cache-Control": "public, max-age=86400"})
 
 
 class TMDBTestRequest(BaseModel):
@@ -1103,7 +1096,7 @@ async def serve_frontend(path: str):
     # 否则返回 API 信息
     return {
         "message": "字幕管理器 API",
-        "version": "1.0.0",
+        "version": "1.9.1",
         "status": "running"
     }
 

@@ -49,18 +49,19 @@ def get_subtitle_files(video_path: str) -> List[str]:
 
 
 def has_chinese_subtitle(video_path: str) -> bool:
-    """检查视频是否已有中文字幕"""
+    """检查视频是否已有中文字幕（优化：先检查文件名标识，避免不必要的 I/O）"""
     subtitle_files = get_subtitle_files(video_path)
     
     for sub_file in subtitle_files:
         file_name = os.path.basename(sub_file).lower()
         
-        # 检查文件名中是否包含中文标识
+        # 优先检查文件名中是否包含中文标识（快速路径，无 I/O）
         for lang_code in settings.CHINESE_LANG_CODES:
             if lang_code.lower() in file_name:
                 return True
-        
-        # 检查字幕文件内容
+    
+    # 文件名检查未命中时，才读取内容检测（慢路径）
+    for sub_file in subtitle_files:
         try:
             if is_chinese_subtitle_content(sub_file):
                 return True
@@ -71,17 +72,16 @@ def has_chinese_subtitle(video_path: str) -> bool:
 
 
 def is_chinese_subtitle_content(subtitle_path: str) -> bool:
-    """检查字幕文件内容是否包含中文"""
+    """检查字幕文件内容是否包含中文（只读取前 4KB 以提升性能）"""
     try:
-        # 检测文件编码
+        # 只读取前 4KB 用于编码检测和中文判断
         with open(subtitle_path, 'rb') as f:
-            raw_data = f.read()
+            raw_data = f.read(4096)
             result = chardet.detect(raw_data)
             encoding = result['encoding'] or 'utf-8'
         
-        # 读取内容
-        with open(subtitle_path, 'r', encoding=encoding, errors='ignore') as f:
-            content = f.read()
+        # 解码内容
+        content = raw_data.decode(encoding, errors='ignore')
         
         # 检查中文字符
         chinese_chars = re.findall(r'[\u4e00-\u9fff]', content)

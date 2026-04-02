@@ -16,11 +16,8 @@ from loguru import logger
 import aiohttp
 import chardet
 
-from backend.config import settings, Config, reload_settings
+from backend.config import settings, reload_settings
 import backend.tmdb_api as tmdb_module
-
-# 创建全局配置实例
-config = Config()
 
 # 初始化 TMDB API - 使用重新加载后的配置
 fresh_settings = reload_settings()
@@ -31,7 +28,10 @@ from backend.utils import (
     get_subtitle_save_path, is_movie_file, is_tv_episode,
     format_title_for_search, get_plex_subtitle_filename
 )
-from backend.subtitle_sources import get_source, SubtitleResult, normalize_release_text, score_release_title
+from backend.subtitle_sources import (
+    get_source, SubtitleResult, normalize_release_text, score_release_title,
+    SUBTITLE_EXTENSIONS,
+)
 from backend.nfo_parser import NFOParser
 
 
@@ -61,6 +61,12 @@ class SubtitleManager:
             "movies": {"expires_at": 0.0, "data": None},
             "tvshows": {"expires_at": 0.0, "data": None},
             "anime": {"expires_at": 0.0, "data": None},
+        }
+        # ID 索引缓存（避免线性搜索）
+        self._id_index: Dict[str, Dict[int, Any]] = {
+            "movies": {},
+            "tvshows": {},
+            "anime": {},
         }
         # 任务队列状态
         self._task_queue: List[Dict[str, Any]] = []
@@ -610,39 +616,38 @@ class SubtitleManager:
         return await self._process_video(video_path)
     
     def get_stats(self) -> dict:
-        """获取统计信息"""
-        # 扫描电影、电视剧和动漫
+        """获取全库统计信息（优先从缓存计算以避免 I/O 扫描）"""
+        # 获取最新的媒体列表（会自动走缓存流程）
         movies = self.get_movies()
         tvshows = self.get_tvshows()
         anime = self.get_anime()
-        
+
         # 计算电影统计
+        total_movies = len(movies)
         movies_with_subtitle = sum(1 for m in movies if m.get('hasSubtitle', False))
-        
-        # 计算电视剧统计
+
+        # 统计电视剧集（按季/集展开）
         total_episodes = 0
         episodes_with_subtitle = 0
         for show in tvshows:
             for season in show.get('seasons', []):
-                for episode in season.get('episodes', []):
-                    total_episodes += 1
-                    if episode.get('hasSubtitle', False):
-                        episodes_with_subtitle += 1
-        
-        # 计算动漫统计
+                eps = season.get('episodes', [])
+                total_episodes += len(eps)
+                episodes_with_subtitle += sum(1 for ep in eps if ep.get('hasSubtitle', False))
+
+        # 统计动漫剧集
         anime_episodes = 0
         anime_with_subtitle = 0
         for show in anime:
             for season in show.get('seasons', []):
-                for episode in season.get('episodes', []):
-                    anime_episodes += 1
-                    if episode.get('hasSubtitle', False):
-                        anime_with_subtitle += 1
-        
+                eps = season.get('episodes', [])
+                anime_episodes += len(eps)
+                anime_with_subtitle += sum(1 for ep in eps if ep.get('hasSubtitle', False))
+
         return {
-            'totalMovies': len(movies),
+            'totalMovies': total_movies,
             'moviesWithSubtitle': movies_with_subtitle,
-            'moviesWithoutSubtitle': len(movies) - movies_with_subtitle,
+            'moviesWithoutSubtitle': total_movies - movies_with_subtitle,
             'totalTVShows': len(tvshows),
             'totalEpisodes': total_episodes,
             'episodesWithSubtitle': episodes_with_subtitle,
@@ -682,51 +687,42 @@ class SubtitleManager:
         if entry["data"] is None or time.time() >= entry["expires_at"]:
             return None
 
-        # 检查 NFO 文件是否有更新（基于 mtime 判断缓存是否失效）
-        cached_nfo_mtimes = entry.get("nfo_mtimes", {})
-        if cached_nfo_mtimes:
-            current_mtimes = self._scan_nfo_mtimes(cache_key)
-            if current_mtimes != cached_nfo_mtimes:
-                logger.info(f"NFO 文件已变化，刷新缓存: {cache_key}")
-                self._invalidate_library_cache(cache_key)
-                return None
+        # 用目录 mtime 快速检测变更（替代全量 os.walk 扫描 NFO）
+        cached_dir_mtime = entry.get("dir_mtime", 0.0)
+        current_dir_mtime = self._get_base_dir_mtime(cache_key)
+        if current_dir_mtime > cached_dir_mtime:
+            logger.info(f"目录已变更，刷新缓存: {cache_key}")
+            self._invalidate_library_cache(cache_key)
+            return None
 
         logger.debug(f"Using cached library view: {cache_key}")
         return entry["data"]
 
-    def _scan_nfo_mtimes(self, cache_key: str) -> Dict[str, float]:
-        """
-        扫描指定媒体类型目录下的所有 NFO 文件及其 mtime
-        用于检测文件是否发生变化
-        """
-        nfo_mtimes = {}
+    def _get_base_dir_mtime(self, cache_key: str) -> float:
+        """获取媒体目录的最新修改时间（仅检查根目录，避免全量 os.walk）"""
         dir_map = {
-            "movies": config.MOVIE_DIR,
-            "tvshows": config.TV_DIR,
-            "anime": config.ANIME_DIR,
+            "movies": settings.MOVIE_DIR,
+            "tvshows": settings.TV_DIR,
+            "anime": settings.ANIME_DIR,
         }
         base_dir = dir_map.get(cache_key)
         if not base_dir or not os.path.exists(base_dir):
-            return nfo_mtimes
-
-        for root, _, files in os.walk(base_dir):
-            for fname in files:
-                if fname.lower().endswith(('.nfo', '.NFO')):
-                    fpath = os.path.join(root, fname)
-                    try:
-                        nfo_mtimes[fpath] = os.path.getmtime(fpath)
-                    except OSError:
-                        pass
-        return nfo_mtimes
+            return 0.0
+        try:
+            return os.path.getmtime(base_dir)
+        except OSError:
+            return 0.0
 
     def _set_cached_library(self, cache_key: str, data: list):
-        # 同时记录扫描时的 NFO 文件 mtimes
-        nfo_mtimes = self._scan_nfo_mtimes(cache_key)
+        # 记录目录 mtime 而非全量扫描 NFO mtime
+        dir_mtime = self._get_base_dir_mtime(cache_key)
         self._library_cache[cache_key] = {
             "expires_at": time.time() + self._library_cache_ttl,
             "data": data,
-            "nfo_mtimes": nfo_mtimes,
+            "dir_mtime": dir_mtime,
         }
+        # 更新 ID 索引
+        self._rebuild_id_index(cache_key, data)
 
     def _invalidate_library_cache(self, *cache_keys: str):
         keys = cache_keys or tuple(self._library_cache.keys())
@@ -737,13 +733,43 @@ class SubtitleManager:
     def _cache_key_for_video_path(self, video_path: str) -> Optional[str]:
         normalized = video_path.replace("\\", "/")
         candidates = (
-            ("movies", config.MOVIE_DIR),
-            ("tvshows", config.TV_DIR),
-            ("anime", config.ANIME_DIR),
+            ("movies", settings.MOVIE_DIR),
+            ("tvshows", settings.TV_DIR),
+            ("anime", settings.ANIME_DIR),
         )
         for cache_key, base_dir in candidates:
             if base_dir and normalized.startswith(base_dir.replace("\\", "/")):
                 return cache_key
+        return None
+
+    def _rebuild_id_index(self, cache_key: str, data: list):
+        """从缓存数据构建 ID -> 对象索引，加速单项查找"""
+        index = {}
+        for item in data:
+            item_id = item.get('id')
+            if item_id is not None:
+                index[item_id] = item
+        self._id_index[cache_key] = index
+
+    def _get_by_id(self, cache_key: str, item_id: int):
+        """通过 ID 索引快速查找（O(1)），回退到线性扫描"""
+        # 确保缓存已加载
+        if cache_key == "movies":
+            data = self.get_movies()
+        elif cache_key == "tvshows":
+            data = self.get_tvshows()
+        elif cache_key == "anime":
+            data = self.get_anime()
+        else:
+            return None
+        # 索引查找
+        result = self._id_index.get(cache_key, {}).get(item_id)
+        if result is not None:
+            return result
+        # 回退线性扫描
+        for item in data:
+            if item.get('id') == item_id:
+                return item
         return None
 
     def _mark_cached_video_has_subtitle(self, video_path: str, has_subtitle: bool):
@@ -877,12 +903,11 @@ class SubtitleManager:
         """List subtitle files beside a video file."""
         video_dir = os.path.dirname(video_path)
         video_name = os.path.splitext(os.path.basename(video_path))[0]
-        subtitle_extensions = ['.srt', '.ass', '.ssa', '.vtt', '.smi', '.sami', '.sub', '.idx', '.sup']
         subtitles = []
 
         for file in os.listdir(video_dir):
             file_lower = file.lower()
-            if not any(file_lower.endswith(ext) for ext in subtitle_extensions):
+            if not any(file_lower.endswith(ext) for ext in SUBTITLE_EXTENSIONS):
                 continue
 
             file_stem = os.path.splitext(file)[0]
@@ -908,12 +933,11 @@ class SubtitleManager:
         """Return subtitle file paths that belong to a video file."""
         video_dir = os.path.dirname(video_path)
         video_name = os.path.splitext(os.path.basename(video_path))[0]
-        subtitle_extensions = ['.srt', '.ass', '.ssa', '.vtt', '.smi', '.sami', '.sub', '.idx', '.sup']
         candidates = []
 
         for file in os.listdir(video_dir):
             file_lower = file.lower()
-            if not any(file_lower.endswith(ext) for ext in subtitle_extensions):
+            if not any(file_lower.endswith(ext) for ext in SUBTITLE_EXTENSIONS):
                 continue
 
             file_stem = os.path.splitext(file)[0]
@@ -1704,7 +1728,7 @@ class SubtitleManager:
             return cached
 
         movies = []
-        movie_dir = config.MOVIE_DIR
+        movie_dir = settings.MOVIE_DIR
 
         if not movie_dir or not os.path.exists(movie_dir):
             return movies
@@ -1819,7 +1843,7 @@ class SubtitleManager:
 
         return None
     
-    def scan_library(self, background: bool = False):
+    async def scan_library(self, background: bool = False):
         """
         扫描媒体库（供API调用）
 
@@ -1857,8 +1881,8 @@ class SubtitleManager:
                 asyncio.create_task(run_background_scan())
                 return {"success": True, "message": "扫描任务已启动", "taskId": task_id}
             else:
-                # 同步执行
-                asyncio.run(self.scan_and_process())
+                # 同步执行（实际上仍使用 await，避免 asyncio.run 在已有事件循环中冲突）
+                await self.scan_and_process()
                 self._update_task_status(task_id, "completed", 100, "扫描完成")
                 logger.info("媒体库扫描完成")
                 return {"success": True, "message": "扫描完成"}
@@ -1919,20 +1943,12 @@ class SubtitleManager:
         return {"success": False, "message": "任务不存在"}
     
     def get_movie(self, movie_id: int):
-        """获取单个电影信息"""
-        movies = self.get_movies()
-        for movie in movies:
-            if movie.get('id') == movie_id:
-                return movie
-        return None
+        """获取单个电影信息（通过 ID 索引加速）"""
+        return self._get_by_id("movies", movie_id)
     
     def get_tvshow(self, show_id: int):
-        """获取单个电视剧信息"""
-        shows = self.get_tvshows()
-        for show in shows:
-            if show.get('id') == show_id:
-                return show
-        return None
+        """获取单个电视剧信息（通过 ID 索引加速）"""
+        return self._get_by_id("tvshows", show_id)
     
     def get_episodes(self, show_id: int, season_number: int):
         """获取剧集列表"""
@@ -1944,12 +1960,8 @@ class SubtitleManager:
         return []
     
     def get_anime_show(self, show_id: int):
-        """获取单个动漫信息"""
-        shows = self.get_anime()
-        for show in shows:
-            if show.get('id') == show_id:
-                return show
-        return None
+        """获取单个动漫信息（通过 ID 索引加速）"""
+        return self._get_by_id("anime", show_id)
     
     def get_anime_episodes(self, show_id: int, season_number: int):
         """获取动漫剧集列表"""
@@ -2138,7 +2150,7 @@ class SubtitleManager:
         cached = self._get_cached_library("tvshows")
         if cached is not None:
             return cached
-        shows = self._scan_series_library(config.TV_DIR, "tv")
+        shows = self._scan_series_library(settings.TV_DIR, "tv")
         self._set_cached_library("tvshows", shows)
         return shows
 
@@ -2147,7 +2159,7 @@ class SubtitleManager:
         cached = self._get_cached_library("anime")
         if cached is not None:
             return cached
-        shows = self._scan_series_library(config.ANIME_DIR, "anime")
+        shows = self._scan_series_library(settings.ANIME_DIR, "anime")
         self._set_cached_library("anime", shows)
         return shows
 

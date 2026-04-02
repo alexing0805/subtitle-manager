@@ -3,15 +3,13 @@ NASTool Webhook 对接模块
 接收 NASTool 的 Webhook 通知并自动处理字幕下载
 """
 
-import logging
 from typing import Optional, Dict, Any
 from pydantic import BaseModel
 from pathlib import Path
 import asyncio
 import os
 import time
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class NASToolWebhookData(BaseModel):

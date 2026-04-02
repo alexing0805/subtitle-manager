@@ -117,7 +117,10 @@ class CircuitBreakerOpen(Exception):
 # ==================== 常量 ====================
 
 SEARCH_TERM_LIMIT = 10
-DOWNLOADABLE_SUBTITLE_EXTENSIONS = (".srt", ".ass", ".ssa", ".vtt", ".smi", ".sami", ".sub", ".idx", ".sup", ".7z")
+
+# 统一的字幕文件扩展名常量（全局单一来源）
+SUBTITLE_EXTENSIONS = (".srt", ".ass", ".ssa", ".vtt", ".smi", ".sami", ".sub", ".idx", ".sup")
+DOWNLOADABLE_SUBTITLE_EXTENSIONS = SUBTITLE_EXTENSIONS + (".7z",)
 COMMON_RELEASE_TAGS = (
     "2160p", "1080p", "720p", "480p", "4k", "8k",
     "web", "webdl", "web-dl", "webrip", "bluray", "bdrip", "brrip", "hdrip", "hdtv",
@@ -693,10 +696,15 @@ AVAILABLE_SOURCES = {
     "assrt": AssrtSource,
 }
 
+# 字幕源实例缓存（单例模式，避免重复创建无状态对象）
+_source_instances: Dict[str, 'BaseSubtitleSource'] = {}
 
-def get_source(name: str) -> Optional[BaseSubtitleSource]:
-    """Get a subtitle source instance."""
-    source_class = AVAILABLE_SOURCES.get(name.lower())
-    if source_class:
-        return source_class()
-    return None
+
+def get_source(name: str) -> Optional['BaseSubtitleSource']:
+    """Get a cached subtitle source instance (singleton)."""
+    key = name.lower()
+    if key not in _source_instances:
+        source_class = AVAILABLE_SOURCES.get(key)
+        if source_class:
+            _source_instances[key] = source_class()
+    return _source_instances.get(key)

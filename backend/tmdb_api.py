@@ -9,12 +9,26 @@ from loguru import logger
 
 
 class TMDBAPI:
-    """TMDB API 客户端"""
+    """TMDB API 客户端 — 复用单个 aiohttp.ClientSession 以提升性能"""
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key
         self.base_url = "https://api.themoviedb.org/3"
         self.image_base_url = "https://image.tmdb.org/t/p/w500"
+        self._session: Optional[aiohttp.ClientSession] = None
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """获取或创建可复用的 HTTP 会话"""
+        if self._session is None or self._session.closed:
+            timeout = aiohttp.ClientTimeout(total=15)
+            self._session = aiohttp.ClientSession(timeout=timeout)
+        return self._session
+
+    async def close(self):
+        """关闭 HTTP 会话（应用关闭时调用）"""
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
 
     async def search_movie(self, title: str, year: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """搜索电影"""
@@ -23,30 +37,28 @@ class TMDBAPI:
             return None
 
         try:
-            async with aiohttp.ClientSession() as session:
-                params = {
-                    "api_key": self.api_key,
-                    "query": title,
-                    "language": "zh-CN"
-                }
-                if year:
-                    params["year"] = year
+            session = await self._get_session()
+            params = {
+                "api_key": self.api_key,
+                "query": title,
+                "language": "zh-CN"
+            }
+            if year:
+                params["year"] = year
 
-                async with session.get(
-                    f"{self.base_url}/search/movie",
-                    params=params,
-                    timeout=10
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        results = data.get("results", [])
-                        if results:
-                            # 获取第一个结果
-                            movie = results[0]
-                            # 获取详细信息（包含 IMDB ID）
-                            return await self.get_movie_details(movie["id"])
-                    else:
-                        logger.warning(f"TMDB 搜索失败: {response.status}")
+            async with session.get(
+                f"{self.base_url}/search/movie",
+                params=params,
+                timeout=10
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    results = data.get("results", [])
+                    if results:
+                        movie = results[0]
+                        return await self.get_movie_details(movie["id"])
+                else:
+                    logger.warning(f"TMDB 搜索失败: {response.status}")
         except Exception as e:
             logger.error(f"TMDB 搜索异常: {e}")
 
@@ -59,30 +71,28 @@ class TMDBAPI:
             return None
 
         try:
-            async with aiohttp.ClientSession() as session:
-                params = {
-                    "api_key": self.api_key,
-                    "query": title,
-                    "language": "zh-CN"
-                }
-                if year:
-                    params["first_air_date_year"] = year
+            session = await self._get_session()
+            params = {
+                "api_key": self.api_key,
+                "query": title,
+                "language": "zh-CN"
+            }
+            if year:
+                params["first_air_date_year"] = year
 
-                async with session.get(
-                    f"{self.base_url}/search/tv",
-                    params=params,
-                    timeout=10
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        results = data.get("results", [])
-                        if results:
-                            # 获取第一个结果
-                            tv_show = results[0]
-                            # 获取详细信息（包含 IMDB ID）
-                            return await self.get_tv_details(tv_show["id"])
-                    else:
-                        logger.warning(f"TMDB 搜索失败: {response.status}")
+            async with session.get(
+                f"{self.base_url}/search/tv",
+                params=params,
+                timeout=10
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    results = data.get("results", [])
+                    if results:
+                        tv_show = results[0]
+                        return await self.get_tv_details(tv_show["id"])
+                else:
+                    logger.warning(f"TMDB 搜索失败: {response.status}")
         except Exception as e:
             logger.error(f"TMDB 搜索异常: {e}")
 
@@ -94,30 +104,30 @@ class TMDBAPI:
             return None
 
         try:
-            async with aiohttp.ClientSession() as session:
-                params = {
-                    "api_key": self.api_key,
-                    "language": "zh-CN",
-                    "append_to_response": "external_ids"
-                }
+            session = await self._get_session()
+            params = {
+                "api_key": self.api_key,
+                "language": "zh-CN",
+                "append_to_response": "external_ids"
+            }
 
-                async with session.get(
-                    f"{self.base_url}/movie/{tmdb_id}",
-                    params=params,
-                    timeout=10
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return {
-                            "tmdb_id": data.get("id"),
-                            "imdb_id": data.get("imdb_id"),
-                            "title": data.get("title"),
-                            "original_title": data.get("original_title"),
-                            "year": data.get("release_date", "")[:4] if data.get("release_date") else None,
-                            "overview": data.get("overview"),
-                            "poster_path": f"{self.image_base_url}{data.get('poster_path')}" if data.get("poster_path") else None,
-                            "genre_ids": data.get("genre_ids", [])
-                        }
+            async with session.get(
+                f"{self.base_url}/movie/{tmdb_id}",
+                params=params,
+                timeout=10
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        "tmdb_id": data.get("id"),
+                        "imdb_id": data.get("imdb_id"),
+                        "title": data.get("title"),
+                        "original_title": data.get("original_title"),
+                        "year": data.get("release_date", "")[:4] if data.get("release_date") else None,
+                        "overview": data.get("overview"),
+                        "poster_path": f"{self.image_base_url}{data.get('poster_path')}" if data.get("poster_path") else None,
+                        "genre_ids": data.get("genre_ids", [])
+                    }
         except Exception as e:
             logger.error(f"获取电影详情异常: {e}")
 
@@ -129,34 +139,34 @@ class TMDBAPI:
             return None
 
         try:
-            async with aiohttp.ClientSession() as session:
-                params = {
-                    "api_key": self.api_key,
-                    "language": "zh-CN",
-                    "append_to_response": "external_ids"
-                }
+            session = await self._get_session()
+            params = {
+                "api_key": self.api_key,
+                "language": "zh-CN",
+                "append_to_response": "external_ids"
+            }
 
-                async with session.get(
-                    f"{self.base_url}/tv/{tmdb_id}",
-                    params=params,
-                    timeout=10
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        external_ids = data.get("external_ids", {})
-                        return {
-                            "tmdb_id": data.get("id"),
-                            "imdb_id": external_ids.get("imdb_id"),
-                            "tvdb_id": external_ids.get("tvdb_id"),
-                            "title": data.get("name"),
-                            "original_title": data.get("original_name"),
-                            "year": data.get("first_air_date", "")[:4] if data.get("first_air_date") else None,
-                            "overview": data.get("overview"),
-                            "poster_path": f"{self.image_base_url}{data.get('poster_path')}" if data.get("poster_path") else None,
-                            "genre_ids": data.get("genre_ids", []),
-                            "number_of_seasons": data.get("number_of_seasons"),
-                            "number_of_episodes": data.get("number_of_episodes")
-                        }
+            async with session.get(
+                f"{self.base_url}/tv/{tmdb_id}",
+                params=params,
+                timeout=10
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    external_ids = data.get("external_ids", {})
+                    return {
+                        "tmdb_id": data.get("id"),
+                        "imdb_id": external_ids.get("imdb_id"),
+                        "tvdb_id": external_ids.get("tvdb_id"),
+                        "title": data.get("name"),
+                        "original_title": data.get("original_name"),
+                        "year": data.get("first_air_date", "")[:4] if data.get("first_air_date") else None,
+                        "overview": data.get("overview"),
+                        "poster_path": f"{self.image_base_url}{data.get('poster_path')}" if data.get("poster_path") else None,
+                        "genre_ids": data.get("genre_ids", []),
+                        "number_of_seasons": data.get("number_of_seasons"),
+                        "number_of_episodes": data.get("number_of_episodes")
+                    }
         except Exception as e:
             logger.error(f"获取电视剧详情异常: {e}")
 
@@ -168,27 +178,27 @@ class TMDBAPI:
             return None
 
         try:
-            async with aiohttp.ClientSession() as session:
-                params = {
-                    "api_key": self.api_key,
-                    "language": "zh-CN"
-                }
+            session = await self._get_session()
+            params = {
+                "api_key": self.api_key,
+                "language": "zh-CN"
+            }
 
-                async with session.get(
-                    f"{self.base_url}/tv/{tv_id}/season/{season}/episode/{episode}",
-                    params=params,
-                    timeout=10
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return {
-                            "episode_number": data.get("episode_number"),
-                            "season_number": data.get("season_number"),
-                            "name": data.get("name"),
-                            "overview": data.get("overview"),
-                            "still_path": f"{self.image_base_url}{data.get('still_path')}" if data.get("still_path") else None,
-                            "air_date": data.get("air_date")
-                        }
+            async with session.get(
+                f"{self.base_url}/tv/{tv_id}/season/{season}/episode/{episode}",
+                params=params,
+                timeout=10
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        "episode_number": data.get("episode_number"),
+                        "season_number": data.get("season_number"),
+                        "name": data.get("name"),
+                        "overview": data.get("overview"),
+                        "still_path": f"{self.image_base_url}{data.get('still_path')}" if data.get("still_path") else None,
+                        "air_date": data.get("air_date")
+                    }
         except Exception as e:
             logger.error(f"获取剧集详情异常: {e}")
 
