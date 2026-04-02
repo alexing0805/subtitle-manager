@@ -50,7 +50,7 @@ class AssrtSource(BaseSubtitleSource):
                     params = {"searchword": search_term, "page": 1}
                     logger.info(f"Assrt searching: {search_term}")
 
-                    async with session.get(self.search_url, params=params, timeout=15) as response:
+                    async with session.get(self.search_url, params=params, timeout=8) as response:
                         logger.info(f"Assrt status: {response.status}")
                         if response.status == 429:
                             logger.warning("Assrt rate limited")
@@ -119,8 +119,10 @@ class AssrtSource(BaseSubtitleSource):
                     )
         except asyncio.TimeoutError:
             logger.warning("Assrt search timed out")
+            raise
         except Exception as exc:
             logger.error(f"Assrt search error: {exc}")
+            raise
 
         results.sort(key=lambda result: result.score, reverse=True)
         logger.info(f"Assrt returning {len(results)} results")
