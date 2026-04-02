@@ -196,11 +196,17 @@
         </TransitionGroup>
       </div>
     </div>
+    
+    <ScanVisualization
+      v-model:visible="scanVisualizationVisible"
+      title="全盘扫描可视化"
+      :status="store.scanStatus"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -213,6 +219,7 @@ import 'dayjs/locale/zh-cn'
 import { useAmbientEffects } from '../composables/useAmbientEffects'
 import { buildScanConfirmHtml, createScanDialogOptions } from '../utils/scanDialog'
 import api from '../utils/api'
+import ScanVisualization from '../components/ScanVisualization.vue'
 
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
@@ -275,6 +282,38 @@ onMounted(async () => {
   }
 })
 
+onBeforeUnmount(() => {
+  stopScanPolling()
+})
+
+const scanVisualizationVisible = ref(false)
+let scanPollTimer = null
+
+function stopScanPolling() {
+  if (scanPollTimer) {
+    clearInterval(scanPollTimer)
+    scanPollTimer = null
+  }
+}
+
+async function startScanPolling(onComplete) {
+  stopScanPolling()
+  const syncStatus = async () => {
+    const status = await store.fetchScanStatus()
+    scanVisualizationVisible.value = true
+    if (!status.isScanning && status.phase === 'complete') {
+      stopScanPolling()
+      if (typeof onComplete === 'function') {
+        await onComplete()
+      }
+    }
+  }
+  await syncStatus()
+  scanPollTimer = setInterval(() => {
+    syncStatus().catch(() => {})
+  }, 800)
+}
+
 async function fetchActivities() {
   loadingActivities.value = true
   try {
@@ -318,21 +357,14 @@ async function handleScan() {
       { ...createScanDialogOptions('扫描任务已提交...'), confirmButtonText: '开启深度扫描', cancelButtonText: '暂不执行' }
     )
 
-    ElMessage({
-      message: '扫描进程已在后台启动, 请稍后查看更新',
-      type: 'info',
-      duration: 5000,
-      customClass: 'infuse-message'
-    })
-    
+    ElMessage.info({ message: '扫描进程已在后台启动...', customClass: 'infuse-message' })
     const result = await store.scanLibrary()
-
     if (result && result.success === false) {
       throw new Error(result.message || '服务器内部扫描任务调度失败')
     }
 
-    // 等待后台扫描并更新UI状态
-    setTimeout(async () => {
+    scanVisualizationVisible.value = true
+    startScanPolling(async () => {
       const data = await store.fetchStats()
       rawStats.value = data
       await fetchActivities()
@@ -340,7 +372,7 @@ async function handleScan() {
         message: '媒体库扫描同步完成, 数据已更新',
         customClass: 'infuse-message'
       })
-    }, 3000)
+    })
 
   } catch (error) {
     if (error === 'cancel' || error === 'close' || error === '') return
@@ -366,7 +398,7 @@ async function handleScan() {
 async function handleAutoDownload() {
   try {
     ElMessage.info('开始自动下载字幕...')
-    ElMessage.success('功能开发中')
+    ElMessage.success('功能开发中...')
   } catch (error) {
     ElMessage.error('提交失败')
   }
@@ -578,7 +610,8 @@ function getStatusText(status) {
 }
 
 .stat-card:hover .stat-icon {
-  transform: scale(1.1) rotate(-5deg);
+  transform: scale(1.15) rotate(-5deg);
+  box-shadow: 0 12px 24px rgba(34, 246, 255, 0.3);
 }
 
 .stat-content {
@@ -594,9 +627,16 @@ function getStatusText(status) {
   line-height: 1.1;
   margin-bottom: 4px;
   background: linear-gradient(to bottom, #fff, #cbd5e1);
+  background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.02em;
+  transition: background-position 0.5s ease;
+}
+
+.stat-card:hover .stat-value {
+  background-position: center bottom;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4));
 }
 
 .stat-label {
@@ -718,8 +758,8 @@ function getStatusText(status) {
 .settings-icon-bg { background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); box-shadow: 0 10px 20px rgba(14, 165, 233, 0.2); }
 
 .action-card:hover .action-icon-wrapper {
-  transform: translateY(-5px) scale(1.1);
-  filter: brightness(1.1);
+  transform: translateY(-8px) scale(1.12) rotate(5deg);
+  filter: brightness(1.2);
 }
 
 .action-text {
@@ -729,6 +769,12 @@ function getStatusText(status) {
   letter-spacing: 0.02em;
   position: relative;
   z-index: 1;
+  transition: color 0.3s ease;
+}
+
+.action-card:hover .action-text {
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
 }
 
 .action-ripple {

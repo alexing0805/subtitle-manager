@@ -61,54 +61,67 @@ const appGlowStyle = computed(() => ({
   height: cursorState.value === 'interactive' ? '38px' : cursorState.value === 'blocked' ? '28px' : '20px'
 }))
 
+const interactiveSelectors = [
+  'a',
+  'button',
+  '[role="button"]',
+  '[tabindex]:not([tabindex="-1"])',
+  '.action-card',
+  '.stat-card',
+  '.clickable',
+  '.el-button',
+  '.infuse-button',
+  '.scan-btn',
+  '.movie-card',
+  '.show-card',
+  '.season-tab',
+  '.action-btn',
+  '.apple-button',
+  '[style*="cursor: pointer"]',
+  '[style*="cursor:pointer"]'
+].join(', ')
+
+const blockedSelectors = [
+  ':disabled',
+  '[aria-disabled="true"]',
+  '.is-disabled',
+  '[style*="cursor: not-allowed"]',
+  '[style*="cursor:not-allowed"]'
+].join(', ')
+
 function resolveCursorState(el) {
-  if (!el) return 'default'
+  if (!el || typeof el.closest !== 'function') return 'default'
 
-  const interactiveSelectors = [
-    'a',
-    'button',
-    '[role="button"]',
-    '[tabindex]:not([tabindex="-1"])',
-    '.action-card',
-    '.stat-card',
-    '.clickable',
-    '.el-button',
-    '.infuse-button',
-    '.scan-btn',
-    '.movie-card',
-    '.show-card',
-    '.season-tab',
-    '.action-btn',
-    '.apple-button',
-    '[style*="cursor: pointer"]',
-    '[style*="cursor:pointer"]',
-    '[style*="cursor: not-allowed"]',
-    '[style*="cursor:not-allowed"]'
-  ].join(', ')
-
-  let current = el
-  while (current && current !== document.body) {
-    const { cursor } = window.getComputedStyle(current)
-    if (cursor === 'not-allowed' || current.matches(':disabled') || current.getAttribute('aria-disabled') === 'true') {
-      return 'blocked'
-    }
-    if (cursor === 'pointer' || current.closest(interactiveSelectors)) {
-      return 'interactive'
-    }
-    current = current.parentElement
-  }
+  if (el.closest(blockedSelectors)) return 'blocked'
+  if (el.closest(interactiveSelectors)) return 'interactive'
 
   return 'default'
 }
 
+let reqId = null
+let currentMouse = { x: 0, y: 0, target: null }
+
 function onDocMouseMove(e) {
-  appPointer.x = e.clientX
-  appPointer.y = e.clientY
-  appPointer.active = true
-  cursorState.value = resolveCursorState(e.target)
+  currentMouse.x = e.clientX
+  currentMouse.y = e.clientY
+  currentMouse.target = e.target
+
+  if (!reqId) {
+    reqId = requestAnimationFrame(() => {
+      appPointer.x = currentMouse.x
+      appPointer.y = currentMouse.y
+      appPointer.active = true
+      cursorState.value = resolveCursorState(currentMouse.target)
+      reqId = null
+    })
+  }
 }
 
 function onDocMouseLeave() {
+  if (reqId) {
+    cancelAnimationFrame(reqId)
+    reqId = null
+  }
   appPointer.active = false
   cursorState.value = 'default'
 }
@@ -577,6 +590,12 @@ body::before {
 .el-loading-mask {
   background: rgba(6, 8, 22, 0.72) !important;
   backdrop-filter: blur(4px) !important;
+}
+
+::selection {
+  background: rgba(34, 246, 255, 0.25);
+  text-shadow: 0 0 12px rgba(34, 246, 255, 0.8);
+  color: #fff;
 }
 
 ::-webkit-scrollbar {
