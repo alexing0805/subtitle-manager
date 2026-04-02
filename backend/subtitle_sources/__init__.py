@@ -12,6 +12,7 @@ from typing import List, Optional, Dict
 from contextlib import asynccontextmanager
 
 import aiofiles
+from loguru import logger
 
 try:
     from rapidfuzz import fuzz
