@@ -39,6 +39,11 @@
           <el-radio-button label="compact">紧凑模式</el-radio-button>
           <el-radio-button label="wide">宽幅模式</el-radio-button>
         </el-radio-group>
+        <el-select v-model="filterStatus" placeholder="筛选状态" clearable class="infuse-select">
+          <el-option label="全部" value="" />
+          <el-option label="有字幕" value="with" />
+          <el-option label="无字幕" value="without" />
+        </el-select>
         <el-button type="primary" class="infuse-btn-primary" @click="handleBatchUpload">
           <el-icon><Upload /></el-icon>
           批量上传字幕
@@ -428,6 +433,7 @@ const api = axios.create({
 const router = useRouter()
 const store = useSubtitleStore()
 const searchQuery = ref('')
+const filterStatus = ref('')
 const shows = ref([])
 const {
   containerRef,
@@ -461,9 +467,20 @@ let scanPollTimer = null
 const { displayMode, artPreference } = useMediaDisplayMode()
 
 const filteredShows = computed(() => {
-  if (!searchQuery.value) return shows.value
-  const query = searchQuery.value.toLowerCase()
-  return shows.value.filter(s => s.name.toLowerCase().includes(query))
+  let result = shows.value
+
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(s => s.name.toLowerCase().includes(query))
+  }
+
+  if (filterStatus.value === 'with') {
+    result = result.filter(s => (s.subtitleStats?.has ?? 0) > 0)
+  } else if (filterStatus.value === 'without') {
+    result = result.filter(s => (s.subtitleStats?.has ?? 0) === 0)
+  }
+
+  return result
 })
 
 const currentSeasonEpisodes = computed(() => {
@@ -1689,6 +1706,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 
   .display-mode-toggle :deep(.el-radio-button__inner),
   .filter-group .el-button,
+  .filter-group .infuse-select,
   .episode-actions .el-button {
     width: 100%;
     min-width: 0;
