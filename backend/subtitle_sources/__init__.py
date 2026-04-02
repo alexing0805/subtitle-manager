@@ -620,6 +620,7 @@ class BaseSubtitleSource(ABC):
         """Extract one member from an archive to the target directory."""
         extension = os.path.splitext(member_name)[1] or ".srt"
         target_path = self._resolve_save_path(save_path, extension)
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
         async with aiofiles.open(target_path, "wb") as file_obj:
             await file_obj.write(archive.read(member_name))
         return target_path
