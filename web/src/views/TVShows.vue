@@ -1250,15 +1250,15 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px 20px;
+  padding: 16px;
   background: rgba(10, 16, 38, 0.74);
   border-radius: var(--infuse-radius-md);
   border: 1px solid var(--infuse-border);
-  transition: all 0.2s;
+  transition: all var(--infuse-transition-fast);
 }
 
 .subtitle-item:hover {
-  border-color: var(--infuse-accent);
+  border-color: var(--infuse-border-hover);
   background: rgba(18, 29, 62, 0.88);
 }
 

@@ -974,16 +974,15 @@ function handlePosterError(event) {
   align-items: center;
   gap: 16px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  margin-bottom: 10px;
-  border: 1px solid transparent;
-  transition: all 0.2s;
+  background: rgba(10, 16, 38, 0.74);
+  border-radius: var(--infuse-radius-md);
+  border: 1px solid var(--infuse-border);
+  transition: all var(--infuse-transition-fast);
 }
 
 .subtitle-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: var(--infuse-accent);
+  border-color: var(--infuse-border-hover);
+  background: rgba(18, 29, 62, 0.88);
 }
 
 .subtitle-rank {
@@ -996,8 +995,9 @@ function handlePosterError(event) {
   align-items: center;
   justify-content: center;
   gap: 4px;
+  font-size: 14px;
   font-weight: 700;
-  font-size: 13px;
+  flex-shrink: 0;
 }
 
 .subtitle-rank small {
@@ -1011,10 +1011,25 @@ function handlePosterError(event) {
   line-height: 1;
 }
 
-.subtitle-rank.excellent { background: rgba(52, 199, 89, 0.2); color: #34c759; }
-.subtitle-rank.good { background: rgba(0, 113, 227, 0.2); color: #0071e3; }
-.subtitle-rank.fair { background: rgba(255, 149, 0, 0.2); color: #ff9500; }
-.subtitle-rank.poor { background: rgba(255, 59, 48, 0.2); color: #ff3b30; }
+.subtitle-rank.excellent {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.subtitle-rank.good {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.subtitle-rank.fair {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.subtitle-rank.poor {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+}
 
 .subtitle-info {
   flex: 1;
@@ -1022,7 +1037,9 @@ function handlePosterError(event) {
 }
 
 .subtitle-title {
+  font-size: 14px;
   font-weight: 600;
+  color: var(--infuse-text-primary);
   margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
@@ -1031,13 +1048,15 @@ function handlePosterError(event) {
 
 .subtitle-meta {
   display: flex;
-  gap: 10px;
-  font-size: 11px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .source-tag {
+  font-size: 12px;
+  font-weight: 600;
   color: var(--infuse-accent);
-  font-weight: 700;
 }
 
 .subhd-filename {
