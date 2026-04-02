@@ -1398,6 +1398,144 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   width: 100% !important;
 }
 
+/* 搜索对话框 */
+.search-dialog-content {
+  min-height: 300px;
+}
+
+.episode-info-header {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--infuse-border);
+}
+
+.episode-poster {
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.poster-thumb,
+.poster-thumb-placeholder {
+  width: 100%;
+  aspect-ratio: 2/3;
+  border-radius: var(--infuse-radius-sm);
+  object-fit: cover;
+}
+
+.poster-thumb-placeholder {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+}
+
+.episode-details h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--infuse-text-primary);
+  margin-bottom: 4px;
+}
+
+.episode-code {
+  font-size: 14px;
+  color: var(--infuse-accent);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.episode-file {
+  font-size: 12px;
+  color: var(--infuse-text-muted);
+}
+
+/* 搜索结果 */
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.empty-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--infuse-text-muted);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.subtitle-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(10, 16, 38, 0.74);
+  border-radius: var(--infuse-radius-md);
+  border: 1px solid var(--infuse-border);
+  transition: all var(--infuse-transition-fast);
+}
+
+.subtitle-item:hover {
+  border-color: var(--infuse-border-hover);
+  background: rgba(18, 29, 62, 0.88);
+}
+
+.subtitle-rank {
+  width: 72px;
+  min-width: 72px;
+  min-height: 72px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.subtitle-rank small {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  opacity: 0.72;
+}
+
+.subtitle-rank strong {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.subtitle-rank.excellent {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.subtitle-rank.good {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.subtitle-rank.fair {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.subtitle-rank.poor {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .shows-grid {
