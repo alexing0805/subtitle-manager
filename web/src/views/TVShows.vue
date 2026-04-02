@@ -231,6 +231,91 @@
       </div>
     </el-dialog>
 
+    <!-- 字幕管理对话框 -->
+    <el-dialog
+      v-model="manageDialogVisible"
+      title="管理字幕"
+      width="700px"
+      destroy-on-close
+      class="infuse-dialog"
+    >
+      <div v-if="currentEpisode" class="manage-dialog-content">
+        <div class="episode-info-header">
+          <div class="episode-poster">
+            <img
+              v-if="hasMediaArt(currentShow)"
+              :src="getShowArtUrl(currentShow)"
+              class="poster-thumb"
+            />
+            <div v-else class="poster-thumb-placeholder">
+              <el-icon><Monitor /></el-icon>
+            </div>
+          </div>
+          <div class="episode-details">
+            <h3>{{ currentShow?.name }}</h3>
+            <p class="episode-code">S{{ String(activeSeasonTab || 1).padStart(2, '0') }}E{{ String(currentEpisode.episodeNumber).padStart(2, '0') }}</p>
+            <p class="episode-file">{{ currentEpisode.filename }}</p>
+          </div>
+        </div>
+
+        <div class="subtitles-section">
+          <div class="section-header">
+            <h4>已下载字幕</h4>
+            <span class="subtitle-count">{{ episodeSubtitles.length }} 个字幕</span>
+          </div>
+
+          <div v-if="loadingSubtitles" class="loading-subtitles">
+            <el-icon class="is-loading"><Refresh /></el-icon>
+            加载中...
+          </div>
+
+          <div v-else-if="episodeSubtitles.length === 0" class="empty-subtitles">
+            <el-icon><Document /></el-icon>
+            <p>暂无字幕文件</p>
+            <el-button type="primary" class="infuse-btn-primary" @click="switchToSearch">
+              搜索字幕
+            </el-button>
+          </div>
+
+          <div v-else class="subtitles-list">
+            <div
+              v-for="subtitle in episodeSubtitles"
+              :key="subtitle.id"
+              class="subtitle-file-item"
+            >
+              <div class="file-icon">
+                <el-icon><Document /></el-icon>
+              </div>
+              <div class="file-info">
+                <div class="file-name">{{ subtitle.filename }}</div>
+                <div class="file-meta">
+                  <span class="lang-tag">{{ subtitle.language }}</span>
+                  <span class="format-tag">{{ subtitle.format }}</span>
+                  <span class="size-tag">{{ subtitle.sizeFormatted }}</span>
+                </div>
+              </div>
+              <button
+                class="action-btn danger"
+                @click="handleDeleteSubtitle(subtitle)"
+                :disabled="deletingSubtitle === subtitle.path"
+              >
+                <el-icon v-if="deletingSubtitle !== subtitle.path"><Delete /></el-icon>
+                <span v-else class="loading-spinner"></span>
+                {{ deletingSubtitle === subtitle.path ? '删除中...' : '删除' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button class="infuse-btn-default" @click="manageDialogVisible = false">关闭</el-button>
+        <el-button type="primary" class="infuse-btn-primary" @click="switchToSearch">
+          搜索新字幕
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 字幕搜索对话框 -->
     <el-dialog
       v-model="searchDialogVisible"
@@ -328,7 +413,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSubtitleStore } from '../stores/subtitle'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Upload, Monitor, Check, Setting, InfoFilled, Document, Download } from '@element-plus/icons-vue'
+import { Search, Refresh, Upload, Monitor, Check, Setting, InfoFilled, Document, Download, Delete } from '@element-plus/icons-vue'
 import axios from 'axios'
 import { useAmbientEffects } from '../composables/useAmbientEffects'
 import { useMediaDisplayMode } from '../composables/useMediaDisplayMode'
@@ -363,10 +448,14 @@ const activeSeasonTab = ref(1)
 
 // 字幕搜索相关
 const searchDialogVisible = ref(false)
+const manageDialogVisible = ref(false)
 const currentEpisode = ref(null)
 const searchResults = ref([])
+const episodeSubtitles = ref([])
 const searching = ref(false)
 const downloading = ref(null)
+const loadingSubtitles = ref(false)
+const deletingSubtitle = ref(null)
 const hasSearched = ref(false)  // 记录是否已经搜索过
 const scanVisualizationVisible = ref(false)
 let scanPollTimer = null
@@ -450,12 +539,47 @@ function handleSearchEpisode(episode) {
   hasSearched.value = false  // 重置搜索状态
 }
 
-function handleManageEpisode(episode) {
-  // 管理字幕也打开搜索对话框，允许搜索更多字幕
+async function handleManageEpisode(episode) {
   currentEpisode.value = episode
+  manageDialogVisible.value = true
+  await loadEpisodeSubtitles()
+}
+
+async function loadEpisodeSubtitles() {
+  if (!currentEpisode.value) return
+  loadingSubtitles.value = true
+  try {
+    const response = await api.get(`/episodes/${currentEpisode.value.id}/subtitles`)
+    episodeSubtitles.value = response.data.subtitles || []
+  } catch (error) {
+    ElMessage.error('加载字幕列表失败')
+    episodeSubtitles.value = []
+  } finally {
+    loadingSubtitles.value = false
+  }
+}
+
+async function handleDeleteSubtitle(subtitle) {
+  try {
+    deletingSubtitle.value = subtitle.path
+    await api.post('/subtitles/delete', { subtitlePath: subtitle.path })
+    ElMessage.success('字幕已删除')
+    await loadEpisodeSubtitles()
+    await store.fetchTVShows()
+    shows.value = store.tvShows
+    if (currentEpisode.value) currentEpisode.value = { ...currentEpisode.value, hasSubtitle: episodeSubtitles.value.length > 0 }
+  } catch (error) {
+    ElMessage.error('删除字幕失败')
+  } finally {
+    deletingSubtitle.value = null
+  }
+}
+
+function switchToSearch() {
+  manageDialogVisible.value = false
   searchDialogVisible.value = true
   searchResults.value = []
-  hasSearched.value = false  // 重置搜索状态
+  hasSearched.value = false
 }
 
 function handleBatchUpload() {
