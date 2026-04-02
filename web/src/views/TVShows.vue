@@ -1440,8 +1440,8 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   }
 
   .display-mode-compact .shows-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
   }
 
   .display-mode-compact .show-poster {
