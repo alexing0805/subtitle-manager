@@ -177,9 +177,10 @@ settings = load_settings()
 
 
 def reload_settings():
-    """重新加载设置（热重载）"""
-    global settings
-    settings = load_settings()
+    """重新加载设置（热重载，保留已有对象引用）。"""
+    fresh = load_settings()
+    for field_name in fresh.model_fields.keys():
+        setattr(settings, field_name, getattr(fresh, field_name))
     print("[Config] 配置已重新加载")
     return settings
 
