@@ -597,7 +597,7 @@ function handlePosterError(event) {
   margin-bottom: 40px;
   gap: 16px;
   padding: 20px 24px;
-  background: rgba(8, 14, 34, 0.62);
+  background: var(--infuse-bg-tertiary);
   border: 1px solid var(--infuse-border);
   border-radius: var(--infuse-radius-lg);
   backdrop-filter: blur(18px);
@@ -623,7 +623,7 @@ function handlePosterError(event) {
 }
 
 .display-mode-toggle :deep(.el-radio-button__inner) {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--infuse-bg-card);
   border-color: rgba(255, 255, 255, 0.08);
   color: var(--infuse-text-secondary);
   box-shadow: none;
@@ -767,7 +767,7 @@ function handlePosterError(event) {
 }
 
 .action-btn.secondary {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--infuse-bg-hover);
   color: white;
   backdrop-filter: blur(10px);
 }
@@ -814,7 +814,7 @@ function handlePosterError(event) {
 .meta-item {
   font-size: 11px;
   color: var(--infuse-text-secondary);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--infuse-bg-secondary);
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -829,7 +829,7 @@ function handlePosterError(event) {
   display: flex;
   gap: 20px;
   padding: 24px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--infuse-bg-secondary);
   border-radius: 16px;
   margin-bottom: 24px;
 }
@@ -861,7 +861,7 @@ function handlePosterError(event) {
 
 .meta-pill {
   padding: 4px 12px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--infuse-bg-hover);
   border-radius: 20px;
   font-size: 12px;
   margin-right: 8px;
@@ -974,7 +974,7 @@ function handlePosterError(event) {
   align-items: center;
   gap: 16px;
   padding: 16px;
-  background: rgba(10, 16, 38, 0.74);
+  background: var(--infuse-bg-card);
   border-radius: var(--infuse-radius-md);
   border: 1px solid var(--infuse-border);
   transition: all var(--infuse-transition-fast);
@@ -982,7 +982,7 @@ function handlePosterError(event) {
 
 .subtitle-item:hover {
   border-color: var(--infuse-border-hover);
-  background: rgba(18, 29, 62, 0.88);
+  background: var(--infuse-bg-hover);
 }
 
 .subtitle-rank {

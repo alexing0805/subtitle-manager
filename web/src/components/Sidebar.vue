@@ -7,8 +7,12 @@
       </button>
 
       <div class="logo">
-        <div class="logo-icon">
-          <el-icon><VideoPlay /></el-icon>
+        <div class="logo-icon-stack">
+          <div class="icon-layer layer-back"></div>
+          <div class="icon-layer layer-middle"></div>
+          <div class="icon-layer layer-front">
+            <el-icon><VideoPlay /></el-icon>
+          </div>
         </div>
         <div class="logo-copy">
           <span class="logo-kicker">Neon Relay</span>
@@ -114,16 +118,15 @@ watch(() => route.fullPath, () => {
   top: 0;
   width: 280px;
   height: 100vh;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), transparent 18%),
-    rgba(7, 12, 29, 0.88);
+  background: var(--infuse-bg-tertiary);
   border-right: 1px solid var(--infuse-border);
   display: flex;
   flex-direction: column;
   padding: 32px 24px;
   z-index: 100;
   backdrop-filter: blur(26px);
-  box-shadow: 20px 0 50px rgba(0, 0, 0, 0.22);
+  box-shadow: 20px 0 50px rgba(0, 0, 0, 0.1);
+  transition: all 0.35s ease;
 }
 
 .logo {
@@ -134,17 +137,56 @@ watch(() => route.fullPath, () => {
   margin-bottom: 48px;
 }
 
-.logo-icon {
+.logo-icon-stack {
+  position: relative;
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, var(--infuse-accent) 0%, var(--infuse-accent-alt) 100%);
+  perspective: 1000px;
+}
+
+.icon-layer {
+  position: absolute;
+  inset: 0;
   border-radius: var(--infuse-radius-md);
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.layer-back {
+  background: linear-gradient(135deg, var(--infuse-accent-alt) 0%, var(--infuse-accent) 100%);
+  transform: translate(-3px, 3px) rotate(-8deg);
+  opacity: 0.6;
+  filter: blur(2px);
+}
+
+.layer-middle {
+  background: linear-gradient(135deg, var(--infuse-accent-warn) 0%, var(--infuse-accent-alt) 100%);
+  transform: translate(2px, -2px) rotate(4deg);
+  opacity: 0.8;
+}
+
+.layer-front {
+  background: var(--infuse-gradient-button);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #04111c;
+  color: #fff;
   font-size: 24px;
-  box-shadow: 0 0 0 1px rgba(119, 247, 255, 0.22), 0 0 24px rgba(34, 246, 255, 0.24);
+  transform: translateZ(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255,255,255,0.3);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.logo:hover .layer-back {
+  transform: translate(-6px, 6px) rotate(-12deg);
+  opacity: 0.8;
+}
+
+.logo:hover .layer-middle {
+  transform: translate(4px, -4px) rotate(8deg);
+}
+
+.logo:hover .layer-front {
+  transform: translateZ(20px) scale(1.05);
 }
 
 .logo-copy {
@@ -162,7 +204,7 @@ watch(() => route.fullPath, () => {
 .logo-text {
   font-size: 28px;
   font-weight: 800;
-  background: linear-gradient(135deg, #f7fbff 0%, #77f7ff 40%, #ff8be9 100%);
+  background: linear-gradient(135deg, var(--infuse-text-primary) 0%, var(--infuse-accent) 40%, var(--infuse-accent-alt) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: 0.04em;
@@ -191,16 +233,16 @@ watch(() => route.fullPath, () => {
 }
 
 .nav-item:hover {
-  background: rgba(13, 22, 50, 0.92);
+  background: var(--infuse-bg-hover);
   color: var(--infuse-text-primary);
-  border-color: rgba(119, 247, 255, 0.12);
+  border-color: var(--infuse-border-hover);
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, rgba(34, 246, 255, 0.14), rgba(255, 43, 214, 0.12));
-  color: var(--infuse-accent);
-  border-color: rgba(119, 247, 255, 0.24);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 18px rgba(34, 246, 255, 0.08);
+  background: var(--infuse-gradient-neon);
+  color: var(--infuse-text-primary);
+  border-color: var(--infuse-accent-glow);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
 .nav-icon-wrapper {
@@ -214,16 +256,24 @@ watch(() => route.fullPath, () => {
 }
 
 .nav-item:hover .nav-icon-wrapper {
-  background: var(--infuse-bg-hover);
+  background: var(--infuse-bg-secondary);
 }
 
 .nav-item.active .nav-icon-wrapper {
-  background: rgba(34, 246, 255, 0.14);
-  box-shadow: inset 0 0 0 1px rgba(119, 247, 255, 0.12);
+  background: var(--infuse-accent-glow);
 }
 
 .nav-icon {
   font-size: 20px;
+  color: var(--infuse-text-tertiary);
+}
+
+.nav-item:hover .nav-icon {
+  color: var(--infuse-text-primary);
+}
+
+.nav-item.active .nav-icon {
+  color: var(--infuse-accent);
 }
 
 .nav-text {
@@ -240,7 +290,7 @@ watch(() => route.fullPath, () => {
   height: 24px;
   background: var(--infuse-accent);
   border-radius: 2px 0 0 2px;
-  box-shadow: 0 0 14px var(--infuse-accent), 0 0 28px rgba(34, 246, 255, 0.22);
+  box-shadow: 0 0 14px var(--infuse-accent);
 }
 
 .sidebar-footer {
@@ -254,7 +304,7 @@ watch(() => route.fullPath, () => {
   align-items: center;
   gap: 12px;
   padding: 16px 20px;
-  background: rgba(12, 20, 48, 0.82);
+  background: var(--infuse-bg-card);
   border-radius: var(--infuse-radius-md);
   border: 1px solid var(--infuse-border);
   transition: all var(--infuse-transition-normal);
@@ -262,8 +312,8 @@ watch(() => route.fullPath, () => {
 }
 
 .status-card.online {
-  border-color: rgba(34, 197, 94, 0.3);
-  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.05);
 }
 
 .status-indicator {

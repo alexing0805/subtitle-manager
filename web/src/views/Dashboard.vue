@@ -533,24 +533,22 @@ function getStatusText(status) {
 
 /* Infuse 卡片增强 - 深度玻璃拟态 */
 .infuse-card {
-  background: rgba(15, 23, 42, 0.4);
+  background: var(--infuse-bg-card);
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--infuse-border);
   backdrop-filter: blur(20px) saturate(180%);
   overflow: hidden;
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
   box-shadow: 
-    0 4px 24px -1px rgba(0, 0, 0, 0.2),
+    0 4px 24px -1px rgba(0, 0, 0, 0.1),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   position: relative;
 }
 
 .infuse-card:hover {
-  background: rgba(15, 23, 42, 0.5);
-  border-color: rgba(34, 246, 255, 0.3);
-  box-shadow: 
-    0 20px 40px -12px rgba(0, 0, 0, 0.4),
-    0 0 20px rgba(34, 246, 255, 0.1);
+  background: var(--infuse-bg-hover);
+  border-color: var(--infuse-border-hover);
+  box-shadow: var(--infuse-shadow-glow);
 }
 
 /* 动态光晕层 */
@@ -712,7 +710,7 @@ function getStatusText(status) {
 .stat-divider {
   width: 1px;
   height: 32px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--infuse-bg-hover);
 }
 
 /* 快捷操作 */
@@ -734,8 +732,8 @@ function getStatusText(status) {
   gap: 16px;
   padding: 28px 20px;
   cursor: pointer;
-  background: rgba(15, 23, 42, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: var(--infuse-bg-card);
+  border: 1px solid var(--infuse-border) !important;
 }
 
 .action-icon-wrapper {
@@ -870,7 +868,7 @@ function getStatusText(status) {
   padding: 16px;
   margin-bottom: 8px;
   border-radius: var(--infuse-radius-md);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--infuse-bg-tertiary);
   border: 1px solid transparent;
   transition: all 0.3s;
   animation: slideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -888,7 +886,7 @@ function getStatusText(status) {
 }
 
 .activity-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--infuse-bg-hover);
   border-color: var(--infuse-border);
   transform: translateX(4px);
 }
@@ -1054,7 +1052,7 @@ function getStatusText(status) {
 
 :deep(.scan-status-list) {
   width: 100%;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--infuse-bg-secondary);
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 30px;

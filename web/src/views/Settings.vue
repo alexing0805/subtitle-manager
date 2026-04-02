@@ -490,7 +490,7 @@ async function testTMDBApi() {
 
 .theme-mode-toggle :deep(.el-radio-button__inner) {
   min-width: 108px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--infuse-bg-card);
   border-color: rgba(255, 255, 255, 0.08);
   color: var(--infuse-text-secondary);
 }
@@ -523,7 +523,7 @@ async function testTMDBApi() {
   padding: 14px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--infuse-bg-secondary);
   transition: all 0.25s ease;
 }
 

@@ -859,7 +859,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   align-items: center;
   padding: 20px 24px;
   margin-bottom: 32px;
-  background: rgba(8, 14, 34, 0.62);
+  background: var(--infuse-bg-tertiary);
   border: 1px solid var(--infuse-border);
   backdrop-filter: blur(18px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
@@ -932,7 +932,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 }
 
 .display-mode-toggle :deep(.el-radio-button__inner) {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--infuse-bg-card);
   border-color: rgba(255, 255, 255, 0.08);
   color: var(--infuse-text-secondary);
   box-shadow: none;
@@ -1070,7 +1070,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 }
 
 .action-btn.secondary {
-  background: rgba(8, 16, 38, 0.66);
+  background: var(--infuse-bg-card);
   color: var(--infuse-text-primary);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(119, 247, 255, 0.14);
@@ -1130,7 +1130,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 .meta-item {
   font-size: 12px;
   color: var(--infuse-text-secondary);
-  background: rgba(11, 18, 42, 0.76);
+  background: var(--infuse-bg-hover);
   padding: 2px 8px;
   border-radius: 4px;
   border: 1px solid rgba(119, 247, 255, 0.1);
@@ -1242,7 +1242,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   flex-direction: column;
   align-items: center;
   padding: 12px 24px;
-  background: rgba(10, 16, 38, 0.72);
+  background: var(--infuse-bg-card);
   border-radius: var(--infuse-radius-md);
   border: 1px solid var(--infuse-border);
 }
@@ -1361,7 +1361,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   align-items: center;
   gap: 16px;
   padding: 16px;
-  background: rgba(10, 16, 38, 0.74);
+  background: var(--infuse-bg-card);
   border-radius: var(--infuse-radius-md);
   border: 1px solid var(--infuse-border);
   transition: all var(--infuse-transition-fast);
@@ -1369,7 +1369,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 
 .episode-item:hover {
   border-color: var(--infuse-border-hover);
-  background: rgba(18, 29, 62, 0.88);
+  background: var(--infuse-bg-hover);
 }
 
 .episode-number {
@@ -1495,7 +1495,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
   align-items: center;
   gap: 16px;
   padding: 16px;
-  background: rgba(10, 16, 38, 0.74);
+  background: var(--infuse-bg-card);
   border-radius: var(--infuse-radius-md);
   border: 1px solid var(--infuse-border);
   transition: all var(--infuse-transition-fast);
@@ -1503,7 +1503,7 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 
 .subtitle-item:hover {
   border-color: var(--infuse-border-hover);
-  background: rgba(18, 29, 62, 0.88);
+  background: var(--infuse-bg-hover);
 }
 
 .subtitle-rank {
@@ -1795,13 +1795,13 @@ function markEpisodeHasSubtitle(episodeId, hasSubtitle = true) {
 }
 
 :deep(.infuse-btn-cancel) {
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: var(--infuse-bg-secondary) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   color: var(--infuse-text-secondary) !important;
 }
 
 :deep(.infuse-btn-cancel:hover) {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: var(--infuse-bg-hover) !important;
   color: var(--infuse-text-primary) !important;
 }
 
