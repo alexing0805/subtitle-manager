@@ -156,7 +156,7 @@
                 </el-radio-button>
               </el-radio-group>
               <div class="theme-mode-summary">
-                <strong>当前生效：{{ resolvedTheme === 'oled' ? '真黑' : '深灰' }}</strong>
+                <strong>当前生效：{{ resolvedTheme === 'oled' ? '真黑' : resolvedTheme === 'light' ? '浅色' : '深灰' }}</strong>
                 <span>设置会保存到本地浏览器，下次打开继续生效；切换带平滑过渡。</span>
               </div>
               <div class="theme-option-notes">

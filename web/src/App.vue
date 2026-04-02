@@ -189,6 +189,57 @@ const pageTitle = computed(() => routeTitles[route.path] || '字幕管理器')
   --infuse-transition-fast: 0.15s ease;
   --infuse-transition-normal: 0.25s ease;
   --infuse-transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  --mouse-ring-color: rgba(34, 246, 255, 0.6);
+  --mouse-ring-active-color: rgba(34, 246, 255, 0.9);
+  --mouse-ring-blocked-color: #ffd84d;
+}
+
+:root[data-theme-resolved='light'] {
+  --infuse-bg-primary: #f8fafc;
+  --infuse-bg-secondary: rgba(241, 245, 249, 0.86);
+  --infuse-bg-tertiary: rgba(226, 232, 240, 0.92);
+  --infuse-bg-card: rgba(255, 255, 255, 0.72);
+  --infuse-bg-hover: rgba(241, 245, 249, 0.92);
+
+  --infuse-accent: #0ea5e9;
+  --infuse-accent-hover: #38bdf8;
+  --infuse-accent-alt: #d946ef;
+  --infuse-accent-warn: #f59e0b;
+  --infuse-accent-glow: rgba(14, 165, 233, 0.15);
+  --infuse-magenta-glow: rgba(217, 70, 239, 0.15);
+
+  --infuse-text-primary: #0f172a;
+  --infuse-text-secondary: rgba(51, 65, 85, 0.86);
+  --infuse-text-tertiary: rgba(71, 85, 105, 0.68);
+  --infuse-text-muted: rgba(100, 116, 139, 0.52);
+
+  --infuse-border: rgba(148, 163, 184, 0.2);
+  --infuse-border-hover: rgba(14, 165, 233, 0.35);
+
+  --infuse-gradient-overlay: linear-gradient(180deg, rgba(248, 250, 252, 0.2) 0%, rgba(248, 250, 252, 0.6) 48%, rgba(248, 250, 252, 0.96) 100%);
+  --infuse-gradient-card: linear-gradient(145deg, rgba(255, 255, 255, 0.84) 0%, rgba(255, 255, 255, 0.6) 100%);
+  --infuse-gradient-neon: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(217, 70, 239, 0.1) 100%);
+  --infuse-gradient-button: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 45%, #d946ef 100%);
+
+  --infuse-shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.05);
+  --infuse-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --infuse-shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
+  --infuse-shadow-glow: 0 0 0 1px rgba(14, 165, 233, 0.15), 0 0 20px rgba(14, 165, 233, 0.1), 0 10px 24px rgba(15, 23, 42, 0.06);
+
+  --mouse-ring-color: rgba(15, 23, 42, 0.3);
+  --mouse-ring-active-color: rgba(14, 165, 233, 0.8);
+  --mouse-ring-blocked-color: #f59e0b;
+}
+
+:root[data-theme-resolved='oled'] {
+  --infuse-bg-primary: #000000;
+  --infuse-bg-secondary: rgba(5, 5, 5, 0.9);
+  --infuse-bg-tertiary: rgba(10, 10, 10, 0.95);
+  --infuse-bg-card: rgba(12, 12, 12, 0.8);
+  --infuse-bg-hover: rgba(15, 15, 15, 0.95);
+  --infuse-shadow-glow: 0 0 0 1px rgba(34, 246, 255, 0.1), 0 0 16px rgba(34, 246, 255, 0.1), 0 18px 42px rgba(0, 0, 0, 0.7);
+  --infuse-gradient-overlay: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.8) 48%, rgba(0, 0, 0, 1) 100%);
 }
 
 * {
@@ -221,9 +272,7 @@ body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(6, 8, 22, 0.34), rgba(6, 8, 22, 0.82)),
-    radial-gradient(circle at top, rgba(34, 246, 255, 0.08), transparent 38%);
+  background: var(--infuse-gradient-overlay);
   pointer-events: none;
   z-index: -2;
 }
@@ -743,40 +792,12 @@ body::before {
 }
 
 /* --- Global Polish --- */
-@keyframes shimmer {
-  0% { transform: translateX(-100%) skewX(-15deg); }
-  100% { transform: translateX(300%) skewX(-15deg); }
-}
 
 .infuse-card {
   position: relative;
   overflow: hidden;
-}
-
-.infuse-card::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.12) 40%,
-    rgba(255, 255, 255, 0.18) 50%,
-    rgba(255, 255, 255, 0.12) 60%,
-    transparent 100%
-  );
-  transition: opacity 0.2s ease;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0;
-}
-
-.infuse-card:hover::after {
-  animation: shimmer 0.8s ease-out forwards;
-  opacity: 1;
+  background: var(--infuse-bg-card);
+  transition: all 0.35s ease;
 }
 
 /* 全局隐藏原生鼠标，避免子页面 scoped 样式重新设置 pointer/not-allowed */
@@ -792,35 +813,51 @@ body,
   position: fixed;
   width: 20px;
   height: 20px;
-  background: radial-gradient(circle, rgba(34, 246, 255, 1) 0%, rgba(34, 246, 255, 0.5) 50%, transparent 100%);
+  background: transparent;
+  border: 2px solid var(--mouse-ring-color);
   border-radius: 50%;
   pointer-events: none;
   z-index: 9999;
   transform: translate(-50%, -50%);
-  transition: opacity 0.3s ease, width 0.2s ease, height 0.2s ease, filter 0.2s ease, background 0.2s ease;
+  transition: opacity 0.3s ease, width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.3s ease, box-shadow 0.3s ease;
   will-change: transform, width, height, opacity;
+  box-shadow: 0 0 10px transparent;
+}
+
+.app-mouse-glow::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  background: var(--mouse-ring-color);
+  border-radius: 50%;
+  transition: all 0.3s ease;
 }
 
 .app-mouse-glow.is-interactive {
-  background: radial-gradient(circle, rgba(255, 107, 53, 0.96) 0%, rgba(255, 107, 53, 0.46) 58%, transparent 100%);
-  filter: drop-shadow(0 0 10px rgba(255, 107, 53, 0.5));
-  animation: cursorPulse 1.2s ease-in-out infinite;
+  border-color: var(--mouse-ring-active-color);
+  background: rgba(34, 246, 255, 0.05); /* very soft background */
+  box-shadow: 0 0 12px var(--mouse-ring-active-color);
+}
+
+.app-mouse-glow.is-interactive::after {
+  width: 0;
+  height: 0;
+  opacity: 0; /* hide inner dot when interactive */
 }
 
 .app-mouse-glow.is-blocked {
-  background: radial-gradient(circle, rgba(255, 216, 77, 0.95) 0%, rgba(255, 216, 77, 0.36) 58%, transparent 100%);
-  filter: drop-shadow(0 0 8px rgba(255, 216, 77, 0.4)) saturate(0.8);
+  border-color: var(--mouse-ring-blocked-color);
+  opacity: 0.8;
 }
 
-@keyframes cursorPulse {
-  0%, 100% {
-    transform: translate(-50%, -50%) scale(1);
-    filter: drop-shadow(0 0 10px rgba(255, 107, 53, 0.45));
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.12);
-    filter: drop-shadow(0 0 16px rgba(255, 107, 53, 0.7));
-  }
+.app-mouse-glow.is-blocked::after {
+  background: var(--mouse-ring-blocked-color);
+  width: 6px;
+  height: 6px;
 }
 
 /* Better Text Rendering */

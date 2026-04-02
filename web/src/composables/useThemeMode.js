@@ -9,13 +9,17 @@ let transitionTimer = null
 let initialized = false
 
 function isValidThemeMode(value) {
-  return value === 'dark' || value === 'oled' || value === 'system'
+  return value === 'light' || value === 'dark' || value === 'oled' || value === 'system'
 }
 
 function resolveTheme(mode) {
   if (mode === 'oled') return 'oled'
+  if (mode === 'light') return 'light'
+  
   if (mode === 'system') {
-    return mediaQuery?.matches ? 'dark' : 'dark'
+    if (typeof window !== 'undefined' && mediaQuery) {
+      return mediaQuery.matches ? 'dark' : 'light'
+    }
   }
   return 'dark'
 }
@@ -69,9 +73,10 @@ export function useThemeMode() {
   initThemeMode()
 
   const themeOptions = computed(() => [
+    { label: '浅色', value: 'light', description: '清新明亮，对比柔和' },
     { label: '深灰', value: 'dark', description: '保留霓虹层次和背景光晕' },
     { label: '真黑', value: 'oled', description: 'OLED 纯黑底，减少杂光' },
-    { label: '跟随系统', value: 'system', description: '跟随系统深色偏好，默认落到深灰主题' }
+    { label: '跟随系统', value: 'system', description: '跟随系统深色/浅色偏好' }
   ])
 
   return {
