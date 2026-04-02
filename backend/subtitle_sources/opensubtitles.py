@@ -1,23 +1,10 @@
-import os
 from typing import List
 
 import aiohttp
 from loguru import logger
 
+from backend.config import settings
 from . import BaseSubtitleSource, SubtitleResult, build_search_terms
-
-
-def load_env_file(filepath="/app/.env"):
-    """Load a dotenv-style file when running inside the container."""
-    try:
-        with open(filepath, "r", encoding="utf-8") as file_obj:
-            for line in file_obj:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, value = line.split("=", 1)
-                    os.environ[key] = value
-    except Exception as exc:
-        logger.debug(f"Failed to load .env file: {exc}")
 
 
 class OpenSubtitlesSource(BaseSubtitleSource):
@@ -28,12 +15,11 @@ class OpenSubtitlesSource(BaseSubtitleSource):
         self.api_url = "https://api.opensubtitles.com/api/v1"
         self.api_key = None
         self.token = None
-        load_env_file()
 
     def _load_config(self):
-        self.api_key = os.getenv("OPENSUBTITLES_API_KEY")
-        self.username = os.getenv("OPENSUBTITLES_USERNAME")
-        self.password = os.getenv("OPENSUBTITLES_PASSWORD")
+        self.api_key = settings.OPENSUBTITLES_API_KEY
+        self.username = settings.OPENSUBTITLES_USERNAME
+        self.password = settings.OPENSUBTITLES_PASSWORD
 
     async def search(self, video_info: dict) -> List[SubtitleResult]:
         """Search subtitles from OpenSubtitles."""

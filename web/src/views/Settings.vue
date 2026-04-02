@@ -413,12 +413,12 @@ async function testTMDBApi() {
     const data = await response.json()
 
     if (data.success) {
-      ElMessage.success(`${data.message}\n测试电影: ${data.data.test_movie} (${data.data.year})`)
+      ElMessage.success('测试成功')
     } else {
-      ElMessage.error(data.message)
+      ElMessage.error('测试失败')
     }
   } catch (error) {
-    ElMessage.error('测试失败: ' + error.message)
+    ElMessage.error('测试失败')
   } finally {
     testingTMDB.value = false
   }
