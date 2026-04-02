@@ -128,48 +128,64 @@ class AssrtSource(BaseSubtitleSource):
         logger.info(f"Assrt returning {len(results)} results")
         return results
 
+    def _is_direct_download_url(self, url: str) -> bool:
+        """Whether the URL already points to a downloadable ASSRT resource."""
+        if not url:
+            return False
+        lower_url = url.lower()
+        return (
+            "/xml/sub/" in lower_url
+            or "/download/" in lower_url
+            or lower_url.endswith((".xml", ".zip", ".gz", ".rar", ".7z", ".srt", ".ass", ".ssa", ".vtt"))
+        )
+
     async def download(self, subtitle_result: SubtitleResult, save_path: str) -> bool | str:
         """Download a subtitle file from Assrt."""
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
-                async with session.get(subtitle_result.download_url, timeout=30) as response:
-                    if response.status != 200:
-                        logger.error(f"Assrt detail page failed: {response.status}")
-                        return False
+                download_url = subtitle_result.download_url
 
-                    html = await response.text()
-                    soup = BeautifulSoup(html, "html.parser")
-                    download_url = None
+                if not self._is_direct_download_url(download_url):
+                    async with session.get(download_url, timeout=30) as response:
+                        if response.status != 200:
+                            logger.error(f"Assrt detail page failed: {response.status}")
+                            return False
 
-                    # Try to find download link by href containing .zip or download path
-                    for link in soup.find_all("a", href=True):
-                        href = link["href"]
-                        if ".zip" in href.lower() or ("/download/" in href.lower()):
-                            download_url = href
-                            break
+                        html = await response.text()
+                        soup = BeautifulSoup(html, "html.parser")
+                        download_url = None
 
-                    # Fallback: look for btn-download class
-                    if not download_url:
-                        download_btn = soup.find("a", class_="btn-download")
-                        if download_btn:
-                            download_url = download_btn.get("href")
+                        # Try to find download link by href containing .zip or download path
+                        for link in soup.find_all("a", href=True):
+                            href = link["href"]
+                            if ".zip" in href.lower() or ("/download/" in href.lower()):
+                                download_url = href
+                                break
 
-                    # Fallback: look for link text containing download-related keywords
-                    if not download_url:
-                        for link in soup.find_all("a"):
-                            text = link.get_text(strip=True)
-                            if any(kw in text for kw in ["下载字幕", "立即下载", "Download", "下载"]) and link.get("href"):
-                                href = link["href"]
-                                if "/download/" in href or href.endswith(".zip"):
-                                    download_url = href
-                                    break
+                        # Fallback: look for btn-download class
+                        if not download_url:
+                            download_btn = soup.find("a", class_="btn-download")
+                            if download_btn:
+                                download_url = download_btn.get("href")
 
-                    if not download_url:
-                        logger.error("Assrt download link not found in HTML (url=%s)", subtitle_result.download_url)
-                        return False
+                        # Fallback: look for link text containing download-related keywords
+                        if not download_url:
+                            for link in soup.find_all("a"):
+                                text = link.get_text(strip=True)
+                                if any(kw in text for kw in ["下载字幕", "立即下载", "Download", "下载"]) and link.get("href"):
+                                    href = link["href"]
+                                    if "/download/" in href or href.endswith(".zip"):
+                                        download_url = href
+                                        break
 
-                    if not download_url.startswith("http"):
-                        download_url = self.base_url + download_url
+                        if not download_url:
+                            logger.error("Assrt download link not found in HTML (url=%s)", subtitle_result.download_url)
+                            return False
+
+                        if not download_url.startswith("http"):
+                            download_url = self.base_url + download_url
+                else:
+                    logger.info(f"Assrt direct download URL detected: {download_url}")
 
                 async with session.get(download_url, timeout=30) as file_response:
                     if file_response.status != 200:
@@ -178,8 +194,7 @@ class AssrtSource(BaseSubtitleSource):
 
                     content = await file_response.read()
 
-                    # Assrt returns XML file containing gzip-compressed subtitle data
-                    # Try to detect and decompress gzip content inside
+                    # Assrt may return gzip-compressed subtitle data directly
                     if content[:2] == b"\x1f\x8b":
                         logger.info("Assrt: detected gzip content, decompressing")
                         try:
