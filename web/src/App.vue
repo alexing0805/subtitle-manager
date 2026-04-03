@@ -196,40 +196,40 @@ const pageTitle = computed(() => routeTitles[route.path] || '字幕管理器')
 }
 
 :root[data-theme-resolved='light'] {
-  --infuse-bg-primary: #f8fafc;
-  --infuse-bg-secondary: rgba(241, 245, 249, 0.86);
-  --infuse-bg-tertiary: rgba(226, 232, 240, 0.92);
-  --infuse-bg-card: rgba(255, 255, 255, 0.72);
-  --infuse-bg-hover: rgba(241, 245, 249, 0.92);
+  --infuse-bg-primary: #eef3f9;
+  --infuse-bg-secondary: rgba(255, 255, 255, 0.9);
+  --infuse-bg-tertiary: rgba(226, 232, 240, 0.98);
+  --infuse-bg-card: rgba(255, 255, 255, 0.94);
+  --infuse-bg-hover: rgba(226, 232, 240, 0.96);
 
-  --infuse-accent: #0ea5e9;
-  --infuse-accent-hover: #38bdf8;
-  --infuse-accent-alt: #d946ef;
-  --infuse-accent-warn: #f59e0b;
-  --infuse-accent-glow: rgba(14, 165, 233, 0.15);
-  --infuse-magenta-glow: rgba(217, 70, 239, 0.15);
+  --infuse-accent: #0284c7;
+  --infuse-accent-hover: #0ea5e9;
+  --infuse-accent-alt: #c026d3;
+  --infuse-accent-warn: #d97706;
+  --infuse-accent-glow: rgba(2, 132, 199, 0.18);
+  --infuse-magenta-glow: rgba(192, 38, 211, 0.14);
 
   --infuse-text-primary: #0f172a;
-  --infuse-text-secondary: rgba(51, 65, 85, 0.86);
-  --infuse-text-tertiary: rgba(71, 85, 105, 0.68);
-  --infuse-text-muted: rgba(100, 116, 139, 0.52);
+  --infuse-text-secondary: rgba(30, 41, 59, 0.88);
+  --infuse-text-tertiary: rgba(51, 65, 85, 0.8);
+  --infuse-text-muted: rgba(71, 85, 105, 0.72);
 
-  --infuse-border: rgba(148, 163, 184, 0.2);
-  --infuse-border-hover: rgba(14, 165, 233, 0.35);
+  --infuse-border: rgba(148, 163, 184, 0.32);
+  --infuse-border-hover: rgba(2, 132, 199, 0.42);
 
-  --infuse-gradient-overlay: linear-gradient(180deg, rgba(248, 250, 252, 0.2) 0%, rgba(248, 250, 252, 0.6) 48%, rgba(248, 250, 252, 0.96) 100%);
-  --infuse-gradient-card: linear-gradient(145deg, rgba(255, 255, 255, 0.84) 0%, rgba(255, 255, 255, 0.6) 100%);
-  --infuse-gradient-neon: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(217, 70, 239, 0.1) 100%);
-  --infuse-gradient-button: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 45%, #d946ef 100%);
+  --infuse-gradient-overlay: linear-gradient(180deg, rgba(248, 250, 252, 0.18) 0%, rgba(241, 245, 249, 0.72) 48%, rgba(238, 243, 249, 0.98) 100%);
+  --infuse-gradient-card: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(245, 248, 252, 0.92) 100%);
+  --infuse-gradient-neon: linear-gradient(135deg, rgba(2, 132, 199, 0.12) 0%, rgba(192, 38, 211, 0.08) 100%);
+  --infuse-gradient-button: linear-gradient(135deg, #0284c7 0%, #0ea5e9 45%, #c026d3 100%);
 
-  --infuse-shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.05);
-  --infuse-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --infuse-shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
-  --infuse-shadow-glow: 0 0 0 1px rgba(14, 165, 233, 0.15), 0 0 20px rgba(14, 165, 233, 0.1), 0 10px 24px rgba(15, 23, 42, 0.06);
+  --infuse-shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.08);
+  --infuse-shadow-md: 0 14px 32px rgba(15, 23, 42, 0.1);
+  --infuse-shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.14);
+  --infuse-shadow-glow: 0 0 0 1px rgba(2, 132, 199, 0.14), 0 0 18px rgba(2, 132, 199, 0.08), 0 12px 32px rgba(15, 23, 42, 0.08);
 
-  --mouse-ring-color: rgba(15, 23, 42, 0.3);
-  --mouse-ring-active-color: rgba(14, 165, 233, 0.8);
-  --mouse-ring-blocked-color: #f59e0b;
+  --mouse-ring-color: rgba(30, 41, 59, 0.35);
+  --mouse-ring-active-color: rgba(2, 132, 199, 0.82);
+  --mouse-ring-blocked-color: #d97706;
 }
 
 :root[data-theme-resolved='oled'] {

@@ -20,8 +20,16 @@ class NASToolWebhookData(BaseModel):
     title: Optional[str] = None
     year: Optional[int] = None
     type: Optional[str] = None  # movie, tv, anime
+    media_type: Optional[str] = None
+    category: Optional[str] = None
     file_path: Optional[str] = None  # 视频文件路径
     file_name: Optional[str] = None  # 视频文件名
+    path: Optional[str] = None
+    filepath: Optional[str] = None
+    target_path: Optional[str] = None
+    transfer_path: Optional[str] = None
+    source_path: Optional[str] = None
+    original_path: Optional[str] = None
     tmdb_id: Optional[str] = None
     imdb_id: Optional[str] = None
     season: Optional[int] = None
@@ -44,6 +52,17 @@ class NASToolWebhookHandler:
             "subtitle.missing",    # 字幕缺失（自定义事件）
             "transfer.completed",  # 文件转移完成
         ]
+        self._event_aliases = {
+            "download.complete": "download.completed",
+            "download.completed": "download.completed",
+            "media.scrape": "media.scraped",
+            "media.scraped": "media.scraped",
+            "subtitle.missing": "subtitle.missing",
+            "subtitle-missing": "subtitle.missing",
+            "subtitle_missing": "subtitle.missing",
+            "transfer.complete": "transfer.completed",
+            "transfer.completed": "transfer.completed",
+        }
         self._active_tasks: dict[str, asyncio.Task] = {}
         self._recent_triggers: dict[str, float] = {}
         self._dedupe_window_seconds = 120.0
@@ -71,19 +90,22 @@ class NASToolWebhookHandler:
             logger.warning("Webhook 安全令牌验证失败")
             return {"status": "error", "message": "安全令牌验证失败"}
         
-        logger.info(f"收到 NASTool Webhook: event={data.event}, file={data.file_path}")
+        normalized_event = self._normalize_event(data.event)
+        resolved_file_path = self._extract_file_path(data)
+
+        logger.info(f"收到 NASTool Webhook: event={normalized_event}, file={resolved_file_path}")
         
         # 检查事件类型
-        if data.event not in self.supported_events:
+        if normalized_event not in self.supported_events:
             logger.warning(f"不支持的事件类型: {data.event}")
             return {"status": "ignored", "message": f"不支持的事件类型: {data.event}"}
         
         # 检查文件路径
-        if not data.file_path:
+        if not resolved_file_path:
             logger.warning("Webhook 数据缺少文件路径")
             return {"status": "error", "message": "缺少文件路径"}
         
-        resolved_path = self._apply_path_mappings(data.file_path)
+        resolved_path = self._apply_path_mappings(resolved_file_path)
 
         # 验证文件是否存在
         file_path = Path(resolved_path)
@@ -141,18 +163,37 @@ class NASToolWebhookHandler:
         Returns:
             视频信息字典
         """
+        media_info = data.media_info or {}
+        media_path = resolved_path or self._extract_file_path(data)
+        filename = self._first_non_empty(
+            data.file_name,
+            media_info.get("file_name"),
+            media_info.get("filename"),
+            Path(media_path).name if media_path else None,
+        )
+
         video_info = {
-            "path": resolved_path or data.file_path,
-            "name": data.file_name or Path(resolved_path or data.file_path).name,
-            "filename": data.file_name or Path(resolved_path or data.file_path).name,
-            "type": data.type or self._detect_type(resolved_path or data.file_path),
-            "title": data.title,
-            "year": data.year,
-            "tmdb_id": data.tmdb_id,
-            "imdb_id": data.imdb_id,
-            "season": data.season,
-            "episode": data.episode,
-            "quality": data.quality,
+            "path": media_path,
+            "name": filename,
+            "filename": filename,
+            "type": self._resolve_media_type(data, media_path or ""),
+            "title": self._first_non_empty(
+                data.title,
+                media_info.get("title"),
+                media_info.get("name"),
+                media_info.get("media_name"),
+                Path(filename).stem if filename else None,
+            ),
+            "year": self._coerce_int(
+                data.year,
+                media_info.get("year"),
+                media_info.get("release_year"),
+            ),
+            "tmdb_id": self._first_non_empty(data.tmdb_id, media_info.get("tmdb_id"), media_info.get("tmdbid")),
+            "imdb_id": self._first_non_empty(data.imdb_id, media_info.get("imdb_id"), media_info.get("imdbid")),
+            "season": self._coerce_int(data.season, media_info.get("season"), media_info.get("season_number")),
+            "episode": self._coerce_int(data.episode, media_info.get("episode"), media_info.get("episode_number")),
+            "quality": self._first_non_empty(data.quality, media_info.get("quality"), media_info.get("video_quality")),
         }
         
         # 从文件名解析季集信息（如果是剧集）
@@ -164,6 +205,77 @@ class NASToolWebhookHandler:
                 video_info["episode"] = episode
         
         return video_info
+
+    def _normalize_event(self, event: Optional[str]) -> str:
+        raw_event = (event or "").strip().lower()
+        normalized = raw_event.replace("_", ".").replace("-", ".")
+        return self._event_aliases.get(normalized, normalized)
+
+    def _first_non_empty(self, *values: Any) -> Optional[str]:
+        for value in values:
+            if isinstance(value, str):
+                stripped = value.strip()
+                if stripped:
+                    return stripped
+            elif value is not None:
+                return str(value)
+        return None
+
+    def _coerce_int(self, *values: Any) -> Optional[int]:
+        for value in values:
+            if value in (None, ""):
+                continue
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                continue
+        return None
+
+    def _extract_file_path(self, data: NASToolWebhookData) -> Optional[str]:
+        media_info = data.media_info or {}
+        candidates = [
+            data.file_path,
+            data.path,
+            data.filepath,
+            data.target_path,
+            data.transfer_path,
+            data.source_path,
+            data.original_path,
+            media_info.get("file_path"),
+            media_info.get("path"),
+            media_info.get("filepath"),
+            media_info.get("target_path"),
+            media_info.get("transfer_path"),
+            media_info.get("source_path"),
+            media_info.get("original_path"),
+            media_info.get("full_path"),
+            media_info.get("save_path"),
+            media_info.get("destination"),
+            media_info.get("dest"),
+        ]
+        return self._first_non_empty(*candidates)
+
+    def _resolve_media_type(self, data: NASToolWebhookData, file_path: str) -> str:
+        media_info = data.media_info or {}
+        raw_type = self._first_non_empty(
+            data.type,
+            data.media_type,
+            data.category,
+            media_info.get("type"),
+            media_info.get("media_type"),
+            media_info.get("category"),
+        )
+
+        if raw_type:
+            normalized = raw_type.strip().lower()
+            if normalized in {"tv", "series", "show", "episode", "season", "电视剧"}:
+                return "tv"
+            if normalized in {"anime", "animation", "动漫", "动画", "动画片"}:
+                return "anime"
+            if normalized in {"movie", "film", "电影"}:
+                return "movie"
+
+        return self._detect_type(file_path)
 
     def _parse_path_mappings(self) -> list[tuple[str, str]]:
         from backend.config import settings

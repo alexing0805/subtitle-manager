@@ -634,12 +634,12 @@ function getStatusText(status) {
 
 .stat-card:hover .stat-value {
   background-position: center bottom;
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4));
+  filter: drop-shadow(0 0 8px var(--infuse-accent-glow));
 }
 
 .stat-label {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--infuse-text-secondary);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -648,12 +648,12 @@ function getStatusText(status) {
 
 .stat-sublabel {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--infuse-text-tertiary);
 }
 
-.highlight-cyan { color: #22f6ff; font-weight: 600; }
-.highlight-magenta { color: #ff2bd6; font-weight: 600; }
-.highlight-muted { color: rgba(255, 255, 255, 0.5); }
+.highlight-cyan { color: var(--infuse-accent); font-weight: 600; }
+.highlight-magenta { color: var(--infuse-accent-alt); font-weight: 600; }
+.highlight-muted { color: var(--infuse-text-secondary); font-weight: 600; }
 
 .card-arrow {
   position: absolute;
@@ -661,7 +661,7 @@ function getStatusText(status) {
   top: 50%;
   transform: translateY(-50%) translateX(-10px);
   opacity: 0;
-  color: #22f6ff;
+  color: var(--infuse-accent);
   transition: all 0.3s ease;
 }
 
@@ -703,7 +703,7 @@ function getStatusText(status) {
 
 .mini-label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--infuse-text-muted);
   margin-top: 4px;
 }
 
@@ -763,7 +763,7 @@ function getStatusText(status) {
 .action-text {
   font-size: 15px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--infuse-text-primary);
   letter-spacing: 0.02em;
   position: relative;
   z-index: 1;
@@ -771,8 +771,8 @@ function getStatusText(status) {
 }
 
 .action-card:hover .action-text {
-  color: #fff;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+  color: var(--infuse-text-primary);
+  text-shadow: 0 0 10px var(--infuse-accent-glow);
 }
 
 .action-ripple {
