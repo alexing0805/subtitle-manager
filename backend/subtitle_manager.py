@@ -1349,34 +1349,65 @@ class SubtitleManager:
             return None
 
     def _extract_rar_subtitle(self, archive_path: str) -> str | None:
-        """Extract the best subtitle member from a local RAR archive."""
+        """Extract the best subtitle member from a local RAR archive using 7z."""
         try:
+            import subprocess
             import tempfile
-            import rarfile
             from backend.subtitle_sources import SubHDSource
 
             helper = SubHDSource()
-            with rarfile.RarFile(archive_path) as archive:
-                archive_names = archive.namelist()
-                logger.info(f"Local RAR archive members: {archive_names}")
-                member_name = helper._pick_archive_member(archive_names)
-                logger.info(f"Local RAR archive selected member: {member_name}")
-                if not member_name:
-                    logger.warning("RAR archive does not contain a supported subtitle file")
+            # Use 7z to list archive contents (7z supports RAR)
+            result = subprocess.run(
+                ["7z", "l", archive_path],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode != 0:
+                logger.error(f"7z failed to list RAR archive: {result.stderr}")
+                return None
+
+            # Parse 7z listing output to get file names
+            archive_names = []
+            in_data = False
+            for line in result.stdout.splitlines():
+                if line.startswith("----"):
+                    in_data = not in_data
+                    continue
+                if in_data and line.strip():
+                    parts = line.split(None, 5)
+                    if len(parts) >= 6:
+                        archive_names.append(parts[5].strip())
+
+            if not archive_names:
+                logger.warning("RAR archive appears empty or listing failed")
+                return None
+
+            logger.info(f"Local RAR archive members: {archive_names}")
+            member_name = helper._pick_archive_member(archive_names)
+            logger.info(f"Local RAR archive selected member: {member_name}")
+            if not member_name:
+                logger.warning("RAR archive does not contain a supported subtitle file")
+                return None
+
+            with tempfile.TemporaryDirectory(prefix="subtitle-manager-rar-") as tmp_dir:
+                extract_result = subprocess.run(
+                    ["7z", "e", f"-o{tmp_dir}", archive_path, member_name, "-y"],
+                    capture_output=True, text=True, timeout=60,
+                )
+                if extract_result.returncode != 0:
+                    logger.error(f"7z extraction failed: {extract_result.stderr}")
                     return None
 
-                with tempfile.TemporaryDirectory(prefix="subtitle-manager-rar-") as tmp_dir:
-                    archive.extract(member_name, path=tmp_dir)
-                    extracted_path = os.path.join(tmp_dir, member_name)
-                    if not os.path.exists(extracted_path):
-                        logger.warning(f"RAR archive member missing after extraction: {member_name}")
-                        return None
-                    extension = os.path.splitext(member_name)[1] or ".srt"
-                    target_path = os.path.splitext(archive_path)[0] + extension
-                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                    shutil.move(extracted_path, target_path)
-                    logger.info(f"Subtitle extracted from local RAR: {target_path}")
-                    return target_path
+                extracted_path = os.path.join(tmp_dir, os.path.basename(member_name))
+                if not os.path.exists(extracted_path):
+                    logger.warning(f"RAR member missing after extraction: {member_name}")
+                    return None
+
+                extension = os.path.splitext(member_name)[1] or ".srt"
+                target_path = os.path.splitext(archive_path)[0] + extension
+                os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                shutil.move(extracted_path, target_path)
+                logger.info(f"Subtitle extracted from local RAR: {target_path}")
+                return target_path
         except Exception as exc:
             logger.error(f"Failed to extract local RAR subtitle: {exc}")
             return None
