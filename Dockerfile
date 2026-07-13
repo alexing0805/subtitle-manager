@@ -13,7 +13,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
+RUN sed -i 's/^Components: main$/& contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources 2>/dev/null || true \
+    && apt-get update && apt-get install -y \
     gcc \
     libffi-dev \
     libssl-dev \
@@ -42,7 +43,4 @@ ENV PYTHONDONTWRITEBYTECODE=1
 EXPOSE 8080
 
 # 健康检查 - 验证 API 和健康端点
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
-CMD ["python", "-m", "backend.a
+HEALTHCHECK --interval=3
