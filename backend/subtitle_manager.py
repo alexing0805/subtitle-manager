@@ -1348,6 +1348,39 @@ class SubtitleManager:
             logger.error(f"Failed to extract local 7z subtitle: {exc}")
             return None
 
+    def _extract_rar_subtitle(self, archive_path: str) -> str | None:
+        """Extract the best subtitle member from a local RAR archive."""
+        try:
+            import tempfile
+            import rarfile
+            from backend.subtitle_sources import SubHDSource
+
+            helper = SubHDSource()
+            with rarfile.RarFile(archive_path) as archive:
+                archive_names = archive.namelist()
+                logger.info(f"Local RAR archive members: {archive_names}")
+                member_name = helper._pick_archive_member(archive_names)
+                logger.info(f"Local RAR archive selected member: {member_name}")
+                if not member_name:
+                    logger.warning("RAR archive does not contain a supported subtitle file")
+                    return None
+
+                with tempfile.TemporaryDirectory(prefix="subtitle-manager-rar-") as tmp_dir:
+                    archive.extract(member_name, path=tmp_dir)
+                    extracted_path = os.path.join(tmp_dir, member_name)
+                    if not os.path.exists(extracted_path):
+                        logger.warning(f"RAR archive member missing after extraction: {member_name}")
+                        return None
+                    extension = os.path.splitext(member_name)[1] or ".srt"
+                    target_path = os.path.splitext(archive_path)[0] + extension
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    shutil.move(extracted_path, target_path)
+                    logger.info(f"Subtitle extracted from local RAR: {target_path}")
+                    return target_path
+        except Exception as exc:
+            logger.error(f"Failed to extract local RAR subtitle: {exc}")
+            return None
+
     def _normalize_downloaded_subtitle(self, video_path: str, subtitle_path: str) -> Dict[str, Any]:
         """
         标准化下载的字幕文件：
@@ -1366,6 +1399,20 @@ class SubtitleManager:
                     "path": subtitle_path,
                     "converted": False,
                     "warning": "7z 字幕包解压失败，已保留原文件",
+                }
+            if os.path.exists(subtitle_path) and os.path.normcase(extracted_path) != os.path.normcase(subtitle_path):
+                os.remove(subtitle_path)
+            subtitle_path = extracted_path
+            suffix = os.path.splitext(subtitle_path)[1].lower()
+
+        # 1b. 处理 RAR 压缩包：解压后继续处理内部字幕
+        if suffix == ".rar":
+            extracted_path = self._extract_rar_subtitle(subtitle_path)
+            if not extracted_path:
+                return {
+                    "path": subtitle_path,
+                    "converted": False,
+                    "warning": "RAR 字幕包解压失败，已保留原文件",
                 }
             if os.path.exists(subtitle_path) and os.path.normcase(extracted_path) != os.path.normcase(subtitle_path):
                 os.remove(subtitle_path)

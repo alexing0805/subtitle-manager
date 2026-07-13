@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y \
     libgomp1 \
     fonts-noto-cjk \
     curl \
+    unrar \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
@@ -44,4 +45,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-CMD ["python", "-m", "backend.api_server"]
+CMD ["python", "-m", "backend.a
