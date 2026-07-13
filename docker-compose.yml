@@ -1,21 +1,24 @@
+# Subtitle Manager - 修改版（保留原始字幕格式）
+# 使用方法：
+#   1. git clone https://github.com/alexing0805/subtitle-manager.git
+#   2. cd subtitle-manager
+#   3. docker compose up -d --build
+#
+# 首次构建约 3-5 分钟，后续启动秒开
+
 services:
   subtitle-manager:
     build: .
-    image: alexwjxing/subtitle-manager:latest
     container_name: subtitle-manager
     restart: unless-stopped
     ports:
       - "18080:8080"
     environment:
-      MOVIE_DIR: "/movies"
-      TV_DIR: "/tvshows"
-      ANIME_DIR: "/anime"
-      SUBTITLE_SOURCES: "shooter,assrt,opensubtitles,subhd"
-      NASTOOL_ENABLED: "false"
-      # 注意：TMDB、Plex、OpenSubtitles 等需要持久化的配置建议通过 Web 设置页保存
-    volumes:
-      - /mnt/user/Video/Link/MOVIES:/movies
-      - /mnt/user/Video/Link/TVSHOWS:/tvshows
-      - /mnt/user/Video/Link/ANIMES:/anime
-      - ./logs:/app/logs
-      - ./data:/app/data
+      - MOVIE_DIR=/movies
+      - TV_DIR=/tvshows
+      - ANIME_DIR=/anime
+      - SUBTITLE_SOURCES=shooter,assrt,opensubtitles,subhd
+      - SCAN_INTERVAL=30
+      - AUTO_DOWNLOAD=true
+      - AUTO_DOWNLOAD_DELAY_MIN_SECONDS=6
+      - AUTO_DOWNLOAD_DE
