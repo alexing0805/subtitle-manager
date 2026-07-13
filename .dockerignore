@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+.github
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Python
+__pycache__
+*.py[cod]
+*.pyc
+.pytest_cache
+.venv
+venv
+*.egg-info
+dist
+build
+
+# Node
+node_modules
+web/node_modules
+
+# Tests
+tests
+*.test.py
+
+# Docs
+*.md
+!README.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs
+
+# Data (不应该打包进镜像)
+data
+*.json
+!requirements.txt
