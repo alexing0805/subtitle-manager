@@ -286,6 +286,15 @@ def format_size(size_bytes: int) -> str:
 
 def is_movie_file(video_path: str) -> bool:
     """判断是否为电影文件（非剧集）"""
-    # 首先检查是否为视频文件
     if not is_video_file(video_path):
-        return Fals
+        return False
+    info = extract_video_info(video_path)
+    return info['season'] is None and info['episode'] is None
+
+
+def is_tv_episode(video_path: str) -> bool:
+    """判断是否为剧集文件"""
+    if not is_video_file(video_path):
+        return False
+    info = extract_video_info(video_path)
+    return info['season'] is not None and info['episode'] is not None
