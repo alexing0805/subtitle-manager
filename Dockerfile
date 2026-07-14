@@ -13,7 +13,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
+RUN sed -i 's/^Components: main$/& contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    echo "deb http://deb.debian.org/debian bookworm non-free-firmware" >> /etc/apt/sources.list 2>/dev/null; \
+    apt-get update && apt-get install -y \
     gcc \
     libffi-dev \
     libssl-dev \
@@ -25,7 +27,7 @@ RUN apt-get update && apt-get install -y \
     libgomp1 \
     fonts-noto-cjk \
     curl \
-    p7zip-full \
+    unrar \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./

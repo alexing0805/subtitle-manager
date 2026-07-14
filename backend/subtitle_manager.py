@@ -1349,36 +1349,25 @@ class SubtitleManager:
             return None
 
     def _extract_rar_subtitle(self, archive_path: str) -> str | None:
-        """Extract the best subtitle member from a local RAR archive using 7z."""
+        """Extract the best subtitle member from a local RAR archive using unrar."""
         try:
             import subprocess
             import tempfile
             from backend.subtitle_sources import SubHDSource
 
             helper = SubHDSource()
-            # Use 7z to list archive contents (7z supports RAR)
+            # Use unrar to list archive contents
             result = subprocess.run(
-                ["7z", "l", archive_path],
+                ["unrar", "lb", archive_path],
                 capture_output=True, text=True, timeout=30,
             )
             if result.returncode != 0:
-                logger.error(f"7z failed to list RAR archive: {result.stderr}")
+                logger.error(f"unrar failed to list RAR archive: {result.stderr}")
                 return None
 
-            # Parse 7z listing output to get file names
-            archive_names = []
-            in_data = False
-            for line in result.stdout.splitlines():
-                if line.startswith("----"):
-                    in_data = not in_data
-                    continue
-                if in_data and line.strip():
-                    parts = line.split(None, 5)
-                    if len(parts) >= 6:
-                        archive_names.append(parts[5].strip())
-
+            archive_names = [n for n in result.stdout.strip().split("\n") if n.strip()]
             if not archive_names:
-                logger.warning("RAR archive appears empty or listing failed")
+                logger.warning("RAR archive appears empty")
                 return None
 
             logger.info(f"Local RAR archive members: {archive_names}")
@@ -1390,11 +1379,11 @@ class SubtitleManager:
 
             with tempfile.TemporaryDirectory(prefix="subtitle-manager-rar-") as tmp_dir:
                 extract_result = subprocess.run(
-                    ["7z", "e", f"-o{tmp_dir}", archive_path, member_name, "-y"],
+                    ["unrar", "e", "-o+", archive_path, os.path.basename(member_name), tmp_dir],
                     capture_output=True, text=True, timeout=60,
                 )
                 if extract_result.returncode != 0:
-                    logger.error(f"7z extraction failed: {extract_result.stderr}")
+                    logger.error(f"unrar extraction failed: {extract_result.stderr}")
                     return None
 
                 extracted_path = os.path.join(tmp_dir, os.path.basename(member_name))
